@@ -351,7 +351,9 @@ try {
         if ($req.HasEntityBody) {
           $ms = [IO.MemoryStream]::new(); $req.InputStream.CopyTo($ms)
           $msg.Content = [System.Net.Http.ByteArrayContent]::new($ms.ToArray())
-          $msg.Content.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::new("application/json")
+          # Keep the page's own content type (JSON for chat, multipart for voice recordings)
+          $ctype = if ($req.ContentType) { $req.ContentType } else { "application/json" }
+          [void]$msg.Content.Headers.TryAddWithoutValidation("Content-Type", $ctype)
         }
         try {
           $up = $client.SendAsync($msg).GetAwaiter().GetResult()
