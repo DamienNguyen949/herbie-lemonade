@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Herbie (local)</title>
+<link rel="icon" href="herbie.svg" type="image/svg+xml">
+<link rel="icon" href="herbie-192.png" sizes="192x192" type="image/png">
+<link rel="manifest" href="herbie.webmanifest">
+<meta name="theme-color" content="#161c2c">
+<style>
+/* Layout: one narrow work column, a console header with the robot, two views (new ticket / past tickets) swapped in place.
+   Fully offline: no web fonts or CDNs; Windows falls back to Segoe UI / Consolas. */
+:root{
+  --bg:#eef1f6; --panel:#ffffff; --sunk:#e4e8f0; --line:#cdd3de;
+  --fg:#161c2c; --muted:#5b6478; --accent:#0a8fb5; --accent-ink:#ffffff; --signal:#e08a10;
+  --ok:#1f8a4c; --warn:#b26a00; --crit:#c0352b; --jira:#1d63d8;
+  --display:"Chakra Petch","Bahnschrift","Segoe UI",ui-sans-serif,system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161c2c; --panel:#1e2538; --sunk:#121726; --line:#2f3850;
+  --fg:#e6eaf2; --muted:#9aa4ba; --accent:#3cdcff; --accent-ink:#0d1220; --signal:#ffaa28;
+  --ok:#4fd08a; --warn:#ffb547; --crit:#ff7a6e; --jira:#7fb0ff; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg);margin:0}
+body{font:15px/1.55 var(--body);padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header .name{font:600 22px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+header .tag{font:12px var(--mono);color:var(--muted)}
+header nav{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.modelPick{display:flex;align-items:center;gap:6px}
+.modelPick select{width:auto;max-width:230px;padding:7px 8px;font-size:13px}
+.bot{width:40px;height:40px;flex:none}
+.bot .eye{fill:var(--accent)}
+.bot .light{fill:var(--signal)}
+@media (prefers-reduced-motion:no-preference){.thinking .bot .eye{animation:blink 1.2s ease-in-out infinite}}
+@keyframes blink{50%{opacity:.25}}
+button{font:500 14px var(--body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+button:hover{border-color:var(--accent)}
+button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:disabled{opacity:.55;cursor:default}
+button.ghost{background:transparent}
+h1{font:600 26px/1.2 var(--display);margin:0;text-wrap:balance}
+.lede{margin:4px 0 0;color:var(--muted)}
+textarea,input,select{font:15px/1.5 var(--body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+#notes{min-height:180px;font-family:var(--mono);font-size:14px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hint{font-size:13px;color:var(--muted)}
+.msg{font-size:14px;color:var(--muted);min-height:1.2em}
+.msg.err{color:var(--crit)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ask{border-left:3px solid var(--signal)}
+.ask ul{margin:0;padding-left:20px}
+.ticket-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.label{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field textarea{min-height:44px;resize:vertical;font-size:14px}
+.pill{font:600 12px var(--mono);letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.c-Incident{color:var(--crit)} .c-Request{color:var(--accent)} .c-Problem{color:var(--warn)} .c-Change{color:var(--ok)}
+.p-Critical{color:var(--crit)} .p-High{color:var(--warn)} .p-Medium{color:var(--fg)} .p-Low{color:var(--muted)}
+.jira-pill{color:var(--jira)}
+.local-pill{color:var(--ok)}
+.assumed{font-size:13px;color:var(--warn)}
+.stats{font:12px var(--mono);color:var(--ok)}
+.list{display:flex;flex-direction:column;gap:8px}
+details.item{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+details.item summary{list-style:none;cursor:pointer;padding:12px 14px;display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
+.chev{width:18px;height:18px;color:var(--muted);transition:transform .15s ease;flex:none}
+details.item[open] .chev{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+.listTools{display:flex;gap:10px;align-items:center}
+.listTools input{flex:1;min-width:0}
+details.item summary::-webkit-details-marker{display:none}
+details.item .sum{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.item .meta{font:12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:8px;align-items:center}
+details.item .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:6px 14px}
+dt{font:500 11px/1.9 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+dd{margin:0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media (max-width:480px){dl{grid-template-columns:1fr} dd{margin-bottom:6px} details.item summary{grid-template-columns:auto 1fr auto} details.item .meta{grid-column:2} details.item .chev{grid-column:3;grid-row:1}}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:24px;text-align:center;color:var(--muted)}
+.itemActions{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px}
+.confirm{border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--sunk)}
+.confirm.danger{border-left-color:var(--crit)}
+button.danger{color:var(--crit);border-color:var(--crit);background:transparent}
+.itemMsg{font-size:13px;color:var(--muted)}
+.itemMsg.err{color:var(--crit)}
+.edited{font:12px var(--mono);color:var(--muted)}
+.raw{font:13px/1.5 var(--mono);background:var(--sunk);border-radius:8px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+/* Save celebration: a card that pops up over Herbie; one click dismisses it */
+.cele{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(10,14,24,.55);cursor:pointer}
+.celeCard{position:relative;width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  padding:28px 24px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.45);cursor:default}
+.celeBot{width:84px;height:84px}
+.celeBot .eye{fill:var(--accent)} .celeBot .light{fill:var(--signal)}
+.celeCard h2{margin:4px 0 0;font:600 30px/1.1 var(--display);letter-spacing:.02em;color:var(--ok)}
+.celeCard p{margin:0;color:var(--fg)}
+.celeCard .sub{font-size:13px;color:var(--muted)}
+.celeCard button{margin-top:10px;min-width:140px}
+.spark{position:absolute;width:8px;height:8px;border-radius:2px;opacity:0}
+@media (prefers-reduced-motion:no-preference){
+  .cele:not([hidden]){animation:celeFade .18s ease-out}
+  .cele:not([hidden]) .celeCard{animation:celePop .42s cubic-bezier(.2,1.4,.4,1)}
+  .cele:not([hidden]) .celeBot{animation:celeHop .6s .25s ease-in-out 2}
+  .cele:not([hidden]) .celeBot .light{animation:celeBlink .5s .3s steps(1) 4}
+  .cele:not([hidden]) .spark{animation:celeSpark .9s .15s ease-out forwards}
+}
+@keyframes celeFade{from{opacity:0}}
+@keyframes celePop{from{transform:scale(.6);opacity:0}}
+@keyframes celeHop{50%{transform:translateY(-10px) rotate(-4deg)}}
+@keyframes celeBlink{50%{fill:var(--accent)}}
+@keyframes celeSpark{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(220deg)}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header>
+    <svg class="bot" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="31" y="6" width="2" height="9" fill="var(--muted)"/>
+      <circle class="light" cx="32" cy="6" r="4"/>
+      <rect x="6" y="26" width="6" height="14" rx="2" fill="var(--muted)"/>
+      <rect x="52" y="26" width="6" height="14" rx="2" fill="var(--muted)"/>
+      <rect x="11" y="15" width="42" height="40" rx="8" fill="var(--line)"/>
+      <rect x="16" y="22" width="32" height="16" rx="8" fill="var(--sunk)"/>
+      <circle class="eye" cx="24.5" cy="30" r="4"/>
+      <circle class="eye" cx="39.5" cy="30" r="4"/>
+      <rect x="23" y="43" width="18" height="6" rx="2" fill="var(--sunk)"/>
+    </svg>
+    <div>
+      <div class="name">Herbie</div>
+      <div class="tag">job notes → tickets · runs on this PC</div>
+    </div>
+    <nav>
+      <label class="modelPick" title="The local model Lemonade runs Herbie on">
+        <span class="label">Model</span>
+        <select id="model"><option value="">Checking Lemonade…</option></select>
+      </label>
+      <button id="toNew" class="ghost" hidden>New ticket</button>
+      <button id="toHistory" class="ghost">Past tickets</button>
+    </nav>
+  </header>
+
+  <!-- New ticket view -->
+  <section id="viewNew" class="wrap" style="gap:16px">
+    <div>
+      <h1>Please enter job notes.</h1>
+      <p class="lede">Paste your notes from the job. Herbie turns them into a ticket for you to review before saving. Your notes never leave this computer.</p>
+    </div>
+    <textarea id="notes" placeholder="e.g. Dental office, front desk PC. User locked out Monday AM. Unlocked in ADUC, relocked 20 min later. Old password saved on her phone email. Updated phone, unlocked, held."></textarea>
+    <div class="row">
+      <button id="go" class="primary">Create ticket</button>
+      <button id="stop" hidden>Stop</button>
+    </div>
+    <div id="msg" class="msg" role="status"></div>
+    <div id="out"></div>
+  </section>
+
+  <!-- History view -->
+  <section id="viewHistory" class="wrap" style="gap:14px" hidden>
+    <div>
+      <h1>Past tickets</h1>
+      <p class="lede">Newest first. Click a ticket to see the full details.</p>
+      <p class="stats" id="tally"></p>
+    </div>
+
+    <div class="listTools">
+      <input id="search" type="search" placeholder="Search by client, summary, or category" aria-label="Search past tickets">
+      <button id="collapseAll" class="ghost" hidden>Collapse all</button>
+    </div>
+    <div id="list" class="list"></div>
+    <div class="row">
+      <button id="exportBtn" class="ghost">Export tickets</button>
+      <button id="importBtn" class="ghost">Import tickets</button>
+      <input id="importFile" type="file" accept=".json,application/json" hidden>
+    </div>
+    <div id="histMsg" class="msg" role="status"></div>
+  </section>
+</div>
+
+<div class="cele" id="cele" hidden>
+  <div class="celeCard" role="dialog" aria-modal="true" aria-labelledby="celeTitle">
+    <svg class="celeBot" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="31" y="6" width="2" height="9" fill="var(--muted)"/>
+      <circle class="light" cx="32" cy="6" r="4"/>
+      <rect x="6" y="26" width="6" height="14" rx="2" fill="var(--muted)"/>
+      <rect x="52" y="26" width="6" height="14" rx="2" fill="var(--muted)"/>
+      <rect x="11" y="15" width="42" height="40" rx="8" fill="var(--line)"/>
+      <rect x="16" y="22" width="32" height="16" rx="8" fill="var(--sunk)"/>
+      <circle class="eye" cx="24.5" cy="30" r="4"/>
+      <circle class="eye" cx="39.5" cy="30" r="4"/>
+      <path d="M24 44 Q32 50 40 44" fill="none" stroke="var(--sunk)" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <h2 id="celeTitle">Saved!</h2>
+    <p id="celeLine">Filed in Jira.</p>
+    <p class="sub" id="celeSub"></p>
+    <button class="primary" id="celeOk">Nice!</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const CATS = ["Incident","Request","Problem","Change"];
+const PRIS = ["Low","Medium","High","Critical"];
+const STATS = ["Open","Needs follow-up","Waiting on client","Resolved"];
+const FIELDS = [
+  ["client","Client"],["summary","Summary"],["issue","Issue"],["root_cause","Root cause"],
+  ["steps_taken","Steps taken"],["resolution","Resolution"],["reason","Reason for category"]
+];
+const RULES = `You are Herbie, a ticket assistant for an IT support technician. Turn rough job notes into one ticket.
+
+Category definitions:
+- Incident: something broke or stopped working (can't log in, printer down). One-off issues whose cause was found and fixed in the same visit are Incidents.
+- Request: user asked for something standard, nothing broken (new hire setup, software install, access).
+- Problem: use only when the same issue keeps happening or affects multiple users AND the root cause still needs investigating.
+- Change: a planned modification to a system (new Group Policy, firewall rule, network rollout).
+
+Rules:
+- Don't invent details that aren't in the notes. Use "Unknown" or "Not stated" when something is missing.
+- If the notes are too thin to ticket without guessing, or could fit two categories, set "status" to "needs_info" and list 1-4 short questions.
+- If the notes give no priority, choose one and set "priority_assumed" to true with a short "priority_reason".
+
+Status:
+- Open: logged, work hasn't really started.
+- Needs follow-up: work started and the technician owes the next step.
+- Waiting on client: work is blocked until the customer does something (send a password or code, approve a purchase, reply, test a fix, be on site).
+- Resolved: fixed and done.
+
+Reply with only one JSON object in this shape:
+{"status":"ticket"|"needs_info","questions":[string],"ticket":{"category":"Incident|Request|Problem|Change","priority":"Low|Medium|High|Critical","priority_assumed":boolean,"priority_reason":string,"client":string,"summary":string,"issue":string,"root_cause":string,"steps_taken":string,"resolution":string,"ticket_status":"Open|Needs follow-up|Waiting on client|Resolved","reason":string}}
+For needs_info, "ticket" may be null.
+
+Extra guidance (helps small local models):
+- Read the notes carefully. If the notes say what caused the issue, that IS the root cause; don't write "Unknown".
+- "Nth week in a row" means it has happened every week for N weeks.
+- needs_info is only for notes so short or vague that you can't tell what the problem is (e.g. "printer broken", "pc slow"). Never ask questions just to collect nice-to-have details.
+- If work is blocked until the client does something, make a ticket with ticket_status "Waiting on client". Don't ask questions.
+- If the technician still owes the next step (come back, order a part, investigate), use "Needs follow-up", not "Open".
+
+Examples:
+Notes: "Law office. 2 users' Outlook kept asking for password since Tuesday. Found stale creds in Credential Manager, cleared them, signed back in. Fixed."
+{"status":"ticket","questions":[],"ticket":{"category":"Incident","priority":"Medium","priority_assumed":true,"priority_reason":"two users affected, now fixed","client":"Law office","summary":"Outlook repeatedly prompting 2 users for password","issue":"Outlook kept prompting two users for their password since Tuesday.","root_cause":"Stale saved credentials in Windows Credential Manager.","steps_taken":"Cleared stale credentials in Credential Manager; signed users back in.","resolution":"Prompts stopped; Outlook working.","ticket_status":"Resolved","reason":"Something stopped working and was fixed in the same visit."}}
+Notes: "Pizza place. Owner wants a label printer set up for online orders. She needs to buy it first, sent her 2 options."
+{"status":"ticket","questions":[],"ticket":{"category":"Request","priority":"Low","priority_assumed":true,"priority_reason":"new setup, nothing broken","client":"Pizza place","summary":"Set up label printer for online orders","issue":"Owner requested a label printer for online orders.","root_cause":"Not applicable","steps_taken":"Sent owner two printer options to buy.","resolution":"Not yet; waiting for purchase.","ticket_status":"Waiting on client","reason":"Standard request; nothing is broken."}}
+Notes: "pc slow"
+{"status":"needs_info","questions":["Which client and which PC?","What is slow (startup, one app, everything)?","What have you tried so far?"],"ticket":null}`;
+
+let ctl=null, tickets=[], extra=[], lastStats=null;
+const say=(t,err)=>{const m=$("#msg");m.textContent=t||"";m.classList.toggle("err",!!err)};
+const sayHist=(t,err)=>{const m=$("#histMsg");m.textContent=t||"";m.classList.toggle("err",!!err)};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const newHid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+
+/* ---------- Local model via Lemonade (OpenAI-compatible API, proxied by serve-herbie.ps1) ---------- */
+// Models that aren't chat models (speech, images, embeddings, 3D) are left out of the picker.
+const NOT_CHAT=/whisper|kokoro|tts|^sd[-_]|stable-?diffusion|sdxl|flux|esrgan|trellis|embed|rerank|nomic|bge/i;
+let model=localStorage.getItem("herbie.model")||"";
+const llmErr=(code,detail)=>Object.assign(new Error(detail||code),{code});
+// Herbie's server only answers requests carrying this header, so other websites can't use the model or Jira.
+const api=(path,opts={})=>fetch(path,{...opts,headers:{...(opts.headers||{}),"X-Herbie":"1"}});
+
+async function loadModels(){
+  const pick=$("#model");
+  try{
+    const r=await api("/api/v1/models");
+    if(!r.ok) throw llmErr("lemonade_unreachable");
+    const ids=((await r.json()).data||[]).map(m=>m.id).filter(id=>id&&!NOT_CHAT.test(id));
+    if(!ids.length){
+      pick.innerHTML=`<option value="">No chat model</option>`; model="";
+      say(errCopy("no_model"),true); return;
+    }
+    if(!ids.includes(model)) model=ids[0];
+    pick.innerHTML=ids.map(id=>`<option${id===model?" selected":""}>${esc(id)}</option>`).join("");
+    localStorage.setItem("herbie.model",model);
+    if($("#msg").classList.contains("err")) say("");
+  }catch{
+    pick.innerHTML=`<option value="">Lemonade offline</option>`; model="";
+    say(errCopy("lemonade_unreachable"),true);
+  }
+}
+$("#model").onchange=e=>{model=e.target.value;localStorage.setItem("herbie.model",model)};
+$("#model").addEventListener("focus",()=>{if(!model)loadModels()});
+
+// Small local models sometimes wrap JSON in a thinking block or code fences; pull out the object.
+function parseReply(text){
+  const s=String(text||"").replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/```(?:json)?/gi,"");
+  const a=s.indexOf("{"), b=s.lastIndexOf("}");
+  if(a<0||b<=a) throw llmErr("invalid_json");
+  try{return JSON.parse(s.slice(a,b+1))}catch{throw llmErr("invalid_json")}
+}
+async function chat(system,user,signal,jsonMode){
+  const body={model,messages:[{role:"system",content:system},{role:"user",content:user}],temperature:0.2,stream:false};
+  if(jsonMode) body.response_format={type:"json_object"};
+  let r;
+  try{ r=await api("/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal}); }
+  catch(e){ throw llmErr(e?.name==="AbortError"?"cancelled":"lemonade_unreachable"); }
+  if(r.status===502) throw llmErr("lemonade_unreachable");
+  const j=await r.json().catch(()=>null);
+  if(!r.ok) throw llmErr("model_error", j?.error?.message||("HTTP "+r.status));
+  return j;
+}
+const sample={
+  async json(system,user,{signal}={}){
+    if(!model) throw llmErr("no_model");
+    if(/qwen3/i.test(model)) user+="\n/no_think";   // skip Qwen3's slow thinking mode; the ticket doesn't need it
+    const t0=performance.now();
+    let j;
+    try{ j=await chat(system,user,signal,true); }
+    catch(e){ if(e.code!=="model_error") throw e; j=await chat(system,user,signal,false); }   // backend without JSON mode
+    const secs=(performance.now()-t0)/1000;
+    return {data:parseReply(j?.choices?.[0]?.message?.content), stats:{model,secs,toks:j?.usage?.completion_tokens||0}};
+  }
+};
+
+/* ---------- Ticket storage in this browser (replaces the artifact database) ---------- */
+const db=(()=>{
+  const KEY="herbie.tickets.v1"; const subs=[];
+  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch{return []}};
+  const snap=()=>({docs:read().sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,500)
+    .map(t=>({id:t.id,data:()=>{const {id,...rest}=t;return rest}}))});
+  const emit=()=>subs.forEach(f=>f(snap()));
+  const write=a=>{try{localStorage.setItem(KEY,JSON.stringify(a))}catch{throw Object.assign(new Error("full"),{code:"quota_exceeded"})} emit()};
+  window.addEventListener("storage",e=>{if(e.key===KEY)emit()});
+  return {
+    collection:()=>({
+      add:async t=>{const a=read(),id=newHid(); a.push({...t,id}); write(a); return {id}},
+      orderBy:()=>({limit:()=>({onSnapshot:f=>{subs.push(f); f(snap())}})})
+    }),
+    doc:p=>{const id=p.split("/")[1]; return {
+      delete:async()=>write(read().filter(t=>t.id!==id)),
+      update:async u=>{const a=read(),i=a.findIndex(t=>t.id===id); if(i<0) throw new Error("missing"); a[i]={...a[i],...u}; write(a)}
+    }},
+    importMany(list){
+      if(!Array.isArray(list)) throw new Error("not a list");
+      const a=read(), have=new Set(a.map(t=>t.id)); let n=0;
+      for(const t of list){
+        if(!t||typeof t!=="object"||!(t.summary||t.notes)) continue;
+        const id=t.id&&!have.has(t.id)?t.id:(t.id&&have.has(t.id)?null:newHid());
+        if(!id) continue;
+        a.push({...t,id,createdAt:t.createdAt||new Date().toISOString()}); have.add(id); n++;
+      }
+      write(a); return n;
+    }
+  };
+})();
+
+function show(view){
+  const hist=view==="history";
+  $("#viewNew").hidden=hist; $("#viewHistory").hidden=!hist;
+  $("#toNew").hidden=!hist; $("#toHistory").hidden=hist;
+  if(!hist) $("#notes").focus();
+}
+$("#toHistory").onclick=()=>{show("history");renderList()};
+$("#toNew").onclick=()=>show("new");
+
+function errCopy(c){
+  return ({lemonade_unreachable:"Herbie can't reach Lemonade. Start Lemonade Server, then pick a model up top.",
+    no_model:"No chat model is ready. Download one in the Lemonade app (a Qwen3 4B or 8B works well), then pick it up top.",
+    model_error:"The model hit an error. Try again, or pick a different model up top.",
+    invalid_json:"Herbie's reply came back garbled. Click Create ticket again, or try a bigger model."}[c])
+    || "Something went wrong talking to the local model. Try again.";
+}
+
+async function create(){
+  const notes=$("#notes").value.trim();
+  if(!notes){say("Paste some job notes first.",true);return}
+  ctl=new AbortController();
+  $("#go").disabled=true; $("#stop").hidden=false; $("#app").classList.add("thinking");
+  $("#out").innerHTML=""; say("Herbie is reading your notes… (the first run loads the model, which can take a minute)");
+  const extraText = extra.length ? "\n\nAdditional details from the technician:\n"+extra.join("\n") : "";
+  try{
+    const r=await sample.json(RULES,"Job notes:\n"+notes+extraText,{signal:ctl.signal});
+    let d=r.data;
+    if(d&&!d.ticket&&!d.status&&d.category) d={status:"ticket",ticket:d};   // small models sometimes skip the wrapper
+    lastStats=r.stats;
+    say("");
+    if(d?.status==="needs_info"||!d?.ticket) renderAsk(d?.questions?.length?d.questions:["Can you add more detail about what happened and what you did?"]);
+    else renderTicket(d.ticket, notes+extraText);
+  }catch(e){
+    if(e?.code==="cancelled") say("Stopped.");
+    else{ say(errCopy(e?.code),true); if(e?.code==="lemonade_unreachable"||e?.code==="no_model") loadModels(); }
+  }finally{
+    $("#go").disabled=false; $("#stop").hidden=true; $("#app").classList.remove("thinking");
+  }
+}
+$("#go").onclick=create;
+$("#stop").onclick=()=>ctl?.abort();
+$("#notes").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))create()});
+
+function renderAsk(qs){
+  $("#out").innerHTML=`<div class="panel ask">
+    <div class="label">Herbie needs more detail</div>
+    <ul>${qs.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>
+    <textarea id="answers" placeholder="Answer here, then click Create ticket again"></textarea>
+    <div class="row"><button id="addAns" class="primary">Add details and retry</button></div>
+  </div>`;
+  $("#addAns").onclick=()=>{const a=$("#answers").value.trim(); if(a){extra.push(a); create()}};
+  $("#answers").focus();
+}
+
+function sel(id,opts,val){return `<select id="${id}">${opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>`}
+
+function formFields(p,t){
+  const cat=CATS.includes(t.category)?t.category:"Incident";
+  const pri=PRIS.includes(t.priority)?t.priority:"Medium";
+  const st=STATS.includes(t.ticket_status)?t.ticket_status:"Open";
+  return `<div class="grid">
+      <div class="field"><label class="label" for="${p}category">Category</label>${sel(p+"category",CATS,cat)}</div>
+      <div class="field"><label class="label" for="${p}priority">Priority</label>${sel(p+"priority",PRIS,pri)}</div>
+      <div class="field"><label class="label" for="${p}status">Status</label>${sel(p+"status",STATS,st)}</div>
+    </div>
+    ${t.priority_assumed?`<div class="assumed">Priority is Herbie's call: ${esc(t.priority_reason||"your notes didn't give one")}. Change it if needed.</div>`:""}
+    ${FIELDS.map(([k,l])=>`<div class="field"><label class="label" for="${p}${k}">${l}</label><textarea id="${p}${k}">${esc(t[k]||"")}</textarea></div>`).join("")}`;
+}
+function growTextareas(root){root.querySelectorAll("textarea").forEach(a=>{a.style.height="auto";a.style.height=(a.scrollHeight+2)+"px"})}
+
+function statsLine(s){
+  if(!s) return "";
+  const rate=s.toks&&s.secs?` · ${s.toks} tokens · ${(s.toks/s.secs).toFixed(0)} tok/s`:"";
+  return `Written on this PC by ${esc(s.model)} in ${s.secs.toFixed(1)} s${rate} · $0.00 in API fees`;
+}
+function renderTicket(t, src){
+  $("#out").innerHTML=`<div class="panel">
+    <div class="ticket-head"><span class="label">Review before saving</span></div>
+    <div class="stats">${statsLine(lastStats)}</div>
+    ${formFields("f_",t)}
+    <div class="row">
+      <button id="save" class="primary">Save ticket</button>
+      <button id="discard" class="ghost">Discard</button>
+    </div>
+  </div>`;
+  growTextareas($("#out"));
+  $("#save").onclick=()=>save(src);
+  $("#discard").onclick=reset;
+}
+
+function readForm(p="f_"){
+  const o={category:$("#"+p+"category").value,priority:$("#"+p+"priority").value,ticket_status:$("#"+p+"status").value};
+  FIELDS.forEach(([k])=>o[k]=$("#"+p+k).value.trim());
+  return o;
+}
+
+/* ---------- Jira: Herbie's server files tickets with the login in .env (the token never reaches this page) ---------- */
+function jiraPayload(t,extraKeys={}){
+  const keep={herbie:"jira-v1",hid:t.hid,category:t.category,priority:t.priority,ticket_status:t.ticket_status,notes:t.notes||""};
+  FIELDS.forEach(([k])=>keep[k]=t[k]||"");
+  return {...keep,...extraKeys};
+}
+const JIRA_ERR={
+  not_configured:"Jira isn't set up on this PC yet (see the README to add your Jira login).",
+  login:"Jira rejected the login. The API token in .env may have expired.",
+  unreachable:"Herbie couldn't reach Jira. Check the internet connection.",
+  not_found:"Jira couldn't find the space or ticket. Check JIRA_SITE and JIRA_PROJECT in .env.",
+  rejected:"Jira rejected the ticket.",
+  forbidden:"Herbie's server refused the request. Reopen Herbie from his shortcut.",
+  server:"Herbie's server isn't running. Reopen Herbie from his shortcut."};
+async function sendToJira(t,extraKeys={}){
+  let r;
+  try{ r=await api("/herbie/jira",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(jiraPayload(t,extraKeys))}); }
+  catch{ return {error:{code:"server",message:JIRA_ERR.server}}; }
+  const j=await r.json().catch(()=>null);
+  if(!r.ok||!j||j.error){
+    const code=j?.error?.code||"server";
+    return {error:{code,message:(JIRA_ERR[code]||"Filing in Jira failed.")+(code==="rejected"&&j?.error?.message?" "+j.error.message:"")}};
+  }
+  return j;
+}
+const jiraFields=j=>({jira_key:j.key,jira_url:j.url,jiraExportedAt:new Date().toISOString()});
+
+async function save(src){
+  const llm=lastStats?{model:lastStats.model,secs:+lastStats.secs.toFixed(2),toks:lastStats.toks}:undefined;
+  const t={...readForm(),notes:src,hid:newHid(),...(llm?{llm}:{})};
+  $("#save").disabled=true;
+  let id;
+  try{ id=(await db.collection("tickets").add({...t,createdAt:new Date().toISOString()})).id; }
+  catch(e){
+    $("#save").disabled=false;
+    say(e?.code==="quota_exceeded"?"Ticket storage is full. Delete old tickets to save new ones.":"Couldn't save the ticket. Try again.",true);
+    return;
+  }
+  say("Saved. Herbie is filing it in Jira…");
+  const j=await sendToJira(t);
+  reset();
+  if(j.error){
+    const off=j.error.code==="not_configured";
+    say("Ticket saved in Herbie, but not in Jira: "+j.error.message+(off?"":" Use “Send to Jira” in Past tickets to try again."),!off);
+    return;
+  }
+  await db.doc("tickets/"+id).update(jiraFields(j)).catch(()=>{});
+  celebrate("Saved!",j.already?`Already in Jira as ${j.key}.`:`Filed in Jira as ${j.key}.`,j.key,j.url);
+}
+const SPARK_COLORS=["var(--accent)","var(--signal)","var(--ok)","var(--crit)"];
+let celeReturn=null;
+function celebrate(title,line,key,link){
+  $("#celeTitle").textContent=title; $("#celeLine").textContent=line;
+  $("#celeSub").innerHTML=link?`<a href="${esc(link)}" target="_blank" rel="noopener">Open ${esc(key)} in Jira</a>`:"";
+  const card=document.querySelector(".celeCard");
+  card.querySelectorAll(".spark").forEach(x=>x.remove());
+  for(let i=0;i<14;i++){
+    const sp=document.createElement("span"); sp.className="spark";
+    const ang=(i/14)*Math.PI*2, dist=110+Math.random()*60;
+    sp.style.left="50%"; sp.style.top="70px";
+    sp.style.background=SPARK_COLORS[i%SPARK_COLORS.length];
+    sp.style.setProperty("--dx",Math.cos(ang)*dist+"px"); sp.style.setProperty("--dy",Math.sin(ang)*dist+"px");
+    card.appendChild(sp);
+  }
+  celeReturn=document.activeElement;
+  $("#cele").hidden=false; $("#celeOk").focus();
+}
+function closeCele(){
+  if($("#cele").hidden) return;
+  $("#cele").hidden=true;
+  (celeReturn&&document.contains(celeReturn)?celeReturn:$("#notes"))?.focus();
+}
+$("#celeOk").onclick=closeCele;
+$("#cele").addEventListener("click",e=>{ if(e.target.id==="cele") closeCele(); });
+document.addEventListener("keydown",e=>{ if(!$("#cele").hidden && (e.key==="Escape"||e.key==="Enter")){ e.preventDefault(); closeCele(); } });
+
+function reset(){ $("#notes").value=""; $("#out").innerHTML=""; extra=[]; lastStats=null; say(""); $("#notes").focus(); }
+
+function fmt(iso){try{return new Date(iso).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}catch{return ""}}
+function renderTally(){
+  const local=tickets.filter(t=>t.llm);
+  if(!tickets.length){$("#tally").textContent="";return}
+  const avg=local.length?local.reduce((s,t)=>s+(t.llm.secs||0),0)/local.length:0;
+  $("#tally").textContent=`${tickets.length} ticket${tickets.length===1?"":"s"} saved · ${local.length} written on this PC with Lemonade`
+    +(local.length?` (avg ${avg.toFixed(1)} s each)`:"")+" · $0.00 in API fees";
+}
+let editingId=null, confirmingDelete=null, openIds=new Set(), itemMsgs={};
+function renderList(){
+  const q=$("#search").value.trim().toLowerCase();
+  const list=$("#list");
+  renderTally();
+  const rows=tickets.filter(t=>!q||[t.client,t.summary,t.category,t.issue,t.resolution].join(" ").toLowerCase().includes(q));
+  if(!tickets.length){list.innerHTML=`<div class="empty">No saved tickets yet. Your first saved ticket will show up here.</div>`;return}
+  if(!rows.length){list.innerHTML=`<div class="empty">No tickets match “${esc(q)}”.</div>`;return}
+  list.innerHTML=rows.map(t=>`<details class="item" data-id="${esc(t.id)}"${openIds.has(t.id)||editingId===t.id||confirmingDelete===t.id?" open":""}>
+    <summary><span class="pill c-${esc(t.category)}">${esc(t.category)}</span>
+      <span class="sum"><strong>${esc(t.client||"No client")}</strong> · ${esc(t.summary)}</span>
+      <span class="meta">${t.updatedAt?`<span class="edited" title="Edited ${esc(fmt(t.updatedAt))}">edited</span>`:""}${t.llm?`<span class="pill local-pill" title="${esc(statsLine(t.llm))}">Local</span>`:""}${t.jira_key?`<span class="pill jira-pill" title="In Jira since ${esc(fmt(t.jiraExportedAt))}">${esc(t.jira_key)}</span>`:t.jiraExportedAt?`<span class="pill jira-pill">In Jira</span>`:""}${esc(fmt(t.createdAt))}</span>
+      <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+    <div class="body">${editingId===t.id?editForm(t):`
+      <dl><dt>Priority</dt><dd><span class="pill p-${esc(t.priority)}">${esc(t.priority)}</span></dd>
+        <dt>Status</dt><dd>${esc(t.ticket_status)}</dd>
+        ${FIELDS.map(([k,l])=>`<dt>${l}</dt><dd>${esc(t[k])}</dd>`).join("")}
+        ${t.llm?`<dt>Made by</dt><dd>${statsLine(t.llm)}</dd>`:""}
+        ${t.jira_key?`<dt>Jira</dt><dd>${t.jira_url?`<a href="${esc(t.jira_url)}" target="_blank" rel="noopener">${esc(t.jira_key)}</a>`:esc(t.jira_key)}${t.jiraExportedAt?` · updated ${esc(fmt(t.jiraExportedAt))}`:""}</dd>`:t.jiraExportedAt?`<dt>Jira</dt><dd>Exported ${esc(fmt(t.jiraExportedAt))}</dd>`:""}</dl>
+      ${t.categoryHistory?.length?`<div class="hint">Category history: ${t.categoryHistory.map(h=>`${esc(h.from)} → ${esc(h.to)} (${esc(fmt(h.at))})`).join(", ")}</div>`:""}
+      <div class="label">Original notes</div><pre class="raw">${esc(t.notes)}</pre>
+      ${confirmingDelete===t.id?`<div class="confirm danger" role="group" aria-label="Confirm delete">
+        <div>Delete this ticket from Herbie? It stays in Jira.</div>
+        <div class="row"><button class="danger" data-act="delete-yes" data-id="${esc(t.id)}">Delete from Herbie</button>
+        <button class="ghost" data-act="cancel" data-id="${esc(t.id)}">Cancel</button></div></div>`:`
+      <div class="itemActions"><button data-act="edit" data-id="${esc(t.id)}">Edit</button>
+        ${t.jira_key||t.jiraExportedAt?"":`<button data-act="jira" data-id="${esc(t.id)}">Send to Jira</button>`}
+        <button class="ghost danger" data-act="delete" data-id="${esc(t.id)}">Delete</button></div>`}`}
+      ${itemMsgs[t.id]?`<div class="itemMsg${itemMsgs[t.id].err?" err":""}" role="status">${esc(itemMsgs[t.id].text)}</div>`:""}
+    </div></details>`).join("");
+  list.querySelectorAll("details.item").forEach(d=>d.addEventListener("toggle",()=>{d.open?openIds.add(d.dataset.id):openIds.delete(d.dataset.id); syncCollapseAll()}));
+  syncCollapseAll();
+  list.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>itemAction(b.dataset.act,b.dataset.id));
+  const ef=list.querySelector(".editForm"); if(ef) growTextareas(ef);
+}
+
+function syncCollapseAll(){ $("#collapseAll").hidden=!$("#list").querySelector("details.item[open]"); }
+$("#collapseAll").onclick=()=>{
+  if(editingId||confirmingDelete){ editingId=null; confirmingDelete=null; }
+  openIds.clear(); renderList();
+};
+
+function editForm(t){
+  return `<div class="editForm" style="display:flex;flex-direction:column;gap:14px">
+    <div class="label">Editing ticket</div>
+    ${formFields("e_",t)}
+    ${!t.hid?`<div class="field"><label class="label" for="e_jirakey">Jira ticket number (optional)</label>
+      <input id="e_jirakey" placeholder="e.g. KAN-12" value="${esc(t.jira_key||"")}" autocomplete="off">
+      <span class="hint">This ticket came from an older Herbie. If it's already in Jira, enter its number so your edit updates that ticket.</span></div>`:""}
+    <div id="e_confirm"></div>
+    <div class="row"><button class="primary" data-act="save-edit" data-id="${esc(t.id)}">Save changes</button>
+      <button class="ghost" data-act="cancel" data-id="${esc(t.id)}">Cancel</button></div>
+  </div>`;
+}
+
+function categoryNotice(from,to){
+  if(from==="Incident"&&to==="Problem")
+    return `Changing Incident to Problem creates a new Problem ticket in Jira and links this Incident to it. The Incident stays as it is.`;
+  return `Changing ${from} to ${to} creates a new ${to} ticket in Jira. The old ticket gets closed and linked to the new one.`;
+}
+
+async function itemAction(act,id){
+  const t=tickets.find(x=>x.id===id); if(!t) return;
+  delete itemMsgs[id];
+  if(act==="edit"){ editingId=id; confirmingDelete=null; renderList(); $("#e_summary")?.focus(); return; }
+  if(act==="delete"){ confirmingDelete=id; editingId=null; renderList(); return; }
+  if(act==="cancel"){ editingId=null; confirmingDelete=null; renderList(); return; }
+  if(act==="jira"){
+    itemMsgs[id]={text:"Herbie is filing it in Jira…"}; renderList();
+    const hid=t.hid||newHid();
+    if(!t.hid) await db.doc("tickets/"+id).update({hid}).catch(()=>{});
+    const j=await sendToJira({...t,hid});
+    if(j.error){ itemMsgs[id]={text:"Not sent: "+j.error.message,err:true}; renderList(); return; }
+    await db.doc("tickets/"+id).update(jiraFields(j)).catch(()=>{});
+    delete itemMsgs[id]; renderList();
+    celebrate("Sent!",j.already?`Already in Jira as ${j.key}.`:`Filed in Jira as ${j.key}.`,j.key,j.url);
+    return;
+  }
+  if(act==="delete-yes"){
+    try{ await db.doc("tickets/"+id).delete(); confirmingDelete=null; openIds.delete(id); renderList(); }
+    catch{ itemMsgs[id]={text:"Couldn't delete it. Try again.",err:true}; renderList(); }
+    return;
+  }
+  if(act==="save-edit"){
+    const next=readForm("e_");
+    const jiraKey=($("#e_jirakey")?.value||"").trim().toUpperCase();
+    if(jiraKey && !/^[A-Z][A-Z0-9]+-\d+$/.test(jiraKey)){ $("#e_confirm").innerHTML=`<div class="itemMsg err">That doesn't look like a Jira number. Use the form KAN-12.</div>`; return; }
+    const catChanged=next.category!==t.category;
+    const box=$("#e_confirm");
+    if(catChanged && !box.dataset.ok){
+      box.dataset.ok="1";
+      box.innerHTML=`<div class="confirm" role="group" aria-label="Confirm category change"><div>${esc(categoryNotice(t.category,next.category))}</div>
+        <div class="hint">Click Save changes again to go ahead.</div></div>`;
+      return;
+    }
+    await saveEdit(t,next,jiraKey);
+  }
+}
+
+async function saveEdit(t,next,jiraKey){
+  const hid=t.hid||newHid();
+  const merged={...t,...next,hid};
+  const update={...next,hid,updatedAt:new Date().toISOString()};
+  if(jiraKey) update.jira_key=jiraKey;
+  if(next.category!==t.category) update.categoryHistory=[...(t.categoryHistory||[]),{from:t.category,to:next.category,at:update.updatedAt}];
+  try{ await db.doc("tickets/"+t.id).update(update); }
+  catch{ itemMsgs[t.id]={text:"Couldn't save your changes. Try again.",err:true}; renderList(); return; }
+  editingId=null;
+  itemMsgs[t.id]={text:"Saved. Herbie is updating Jira…"}; renderList();
+  const j=await sendToJira(merged,{action:"update",prev_category:t.category,jira_key:jiraKey||t.jira_key||"",edited_at:update.updatedAt});
+  if(j.error){
+    itemMsgs[t.id]={text:"Changes saved in Herbie, but Jira wasn't updated: "+j.error.message,err:j.error.code!=="not_configured"};
+    renderList(); return;
+  }
+  await db.doc("tickets/"+t.id).update(jiraFields(j)).catch(()=>{});
+  delete itemMsgs[t.id]; renderList();
+  celebrate("Changes saved!",j.replaced?`${j.replaced} was replaced by ${j.key} in Jira.`:`Updated ${j.key} in Jira.`,j.key,j.url);
+}
+$("#search").addEventListener("input",renderList);
+
+/* ---------- Export / import (backups, moving tickets between PCs) ---------- */
+$("#exportBtn").onclick=()=>{
+  if(!tickets.length){sayHist("No tickets to export yet.");return}
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(tickets,null,2)],{type:"application/json"}));
+  a.download="herbie-tickets-"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  sayHist(`Exported ${tickets.length} ticket${tickets.length===1?"":"s"}.`);
+};
+$("#importBtn").onclick=()=>$("#importFile").click();
+$("#importFile").onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try{ const n=db.importMany(JSON.parse(await f.text())); sayHist(`Imported ${n} ticket${n===1?"":"s"}.`); renderList(); }
+  catch{ sayHist("That file isn't a Herbie ticket export.",true); }
+};
+
+// Opened by double-clicking index.html? Lemonade only accepts requests through Herbie's local server,
+// so jump to it if it's running, otherwise explain how to start it.
+async function fileModeCheck(){
+  if(location.protocol!=="file:") return false;
+  $("#go").disabled=true;
+  $("#model").innerHTML=`<option value="">Not started</option>`;
+  try{ await fetch("http://localhost:8765/",{mode:"no-cors"}); location.replace("http://localhost:8765/"); }
+  catch{ say("Herbie was opened as a file, so he can't reach Lemonade. Close this tab and open Herbie from his Desktop shortcut instead.",true); }
+  return true;
+}
+
+(async()=>{
+  if(await fileModeCheck()) return;
+  $("#notes").focus();
+  db.collection("tickets").orderBy("createdAt","desc").limit(500).onSnapshot(s=>{
+    tickets=s.docs.map(d=>({id:d.id,...d.data()}));
+    if(!$("#viewHistory").hidden) renderList();
+  });
+  loadModels();
+  // Tells Herbie's server his window is still open (when started from the shortcut, it stops a few minutes after it's closed).
+  const ping=()=>api("/herbie/ping").catch(()=>{});
+  ping(); setInterval(ping,30000);
+})();
+</script>
+</body>
+</html>

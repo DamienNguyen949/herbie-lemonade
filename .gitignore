@@ -1,0 +1,4 @@
+# Private: Jira login, and records of your own tickets
+.env
+herbie_filed.json
+herbie_jira.log
