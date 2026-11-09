@@ -9,8 +9,7 @@ Job notes (client passwords, network details, names) are never sent to a cloud A
 The only thing that leaves your PC is the finished ticket, sent to your own Jira, if you set that up.
 
 ## What's new
-- **v1.1: Voice notes.** Click **🎤 Talk** and say your job notes. Lemonade's Whisper model turns speech into text
-  on your PC, then Herbie writes the ticket as usual. Two local models, zero cloud.
+- **v1.1:** Added a Talk button so technicians can record voice notes that are converted to text on-device. Herbie now uses a local list of IT terms to ensure correct spelling.
 - **v1.0:** Herbie moves from a cloud AI to Lemonade: notes stay on your PC, works offline, $0 per ticket.
 
 ## Why local matters for freelance techs
@@ -69,6 +68,12 @@ What Herbie files:
 - Tickets are stored in the browser's local storage. **Export tickets** / **Import tickets** on the Past tickets screen
   make backups or move them to another PC.
 - Each ticket records which model wrote it, how long it took and how many tokens it used.
+
+## Credits
+- **Designed, tested and used in the field by** Damien Nguyen, a freelance IT technician.
+- **Code written with** Claude (Anthropic).
+- **Runs on** [AMD Lemonade](https://lemonade-server.ai): Qwen3-4B-Instruct writes the tickets, and Whisper-Base turns voice notes into text, all on your own PC.
+- **v1.1 release notes and commit message written by** Qwen3-4B-Instruct, running locally on Lemonade.
 
 ## License
 MIT. See [LICENSE](LICENSE).
