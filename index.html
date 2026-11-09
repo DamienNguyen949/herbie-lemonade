@@ -46,6 +46,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-vis
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
 button:disabled{opacity:.55;cursor:default}
 button.ghost{background:transparent}
+button.rec{background:#c0392b;border-color:#c0392b;color:#fff}
 h1{font:600 26px/1.2 var(--display);margin:0;text-wrap:balance}
 .lede{margin:4px 0 0;color:var(--muted)}
 textarea,input,select{font:15px/1.5 var(--body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
@@ -153,11 +154,12 @@ button.danger{color:var(--crit);border-color:var(--crit);background:transparent}
   <section id="viewNew" class="wrap" style="gap:16px">
     <div>
       <h1>Please enter job notes.</h1>
-      <p class="lede">Paste your notes from the job. Herbie turns them into a ticket for you to review before saving. Your notes never leave this computer.</p>
+      <p class="lede">Type or paste your notes from the job, or click Talk and say them. Herbie turns them into a ticket for you to review before saving. Your notes never leave this computer.</p>
     </div>
     <textarea id="notes" placeholder="e.g. Dental office, front desk PC. User locked out Monday AM. Unlocked in ADUC, relocked 20 min later. Old password saved on her phone email. Updated phone, unlocked, held."></textarea>
     <div class="row">
       <button id="go" class="primary">Create ticket</button>
+      <button id="mic" title="Say your notes out loud. Speech is turned into text by Lemonade on this computer.">🎤 Talk</button>
       <button id="stop" hidden>Stop</button>
     </div>
     <div id="msg" class="msg" role="status"></div>
@@ -394,6 +396,76 @@ async function create(){
 $("#go").onclick=create;
 $("#stop").onclick=()=>ctl?.abort();
 $("#notes").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))create()});
+/* ---------- Voice notes: record in the browser, transcribe with Lemonade's Whisper (stays on this PC) ---------- */
+const VOCAB="IT support job notes. Herbie, Jira, ADUC, Active Directory, Outlook, Microsoft 365, QuickBooks, Lacerte, Epic, Westlaw, VLAN, GPO, DNS, DHCP, VPN, Wi-Fi, router, firewall, printer.";
+let rec=null;
+async function sttModel(){
+  const r=await api("/api/v1/models");
+  if(!r.ok) throw llmErr("lemonade_unreachable");
+  const ids=((await r.json()).data||[]).map(m=>m.id).filter(Boolean);
+  return ids.find(id=>/whisper/i.test(id))||"";
+}
+function toWav16k(chunks,inRate){
+  const len=chunks.reduce((n,c)=>n+c.length,0), all=new Float32Array(len);
+  let o=0; for(const c of chunks){all.set(c,o);o+=c.length}
+  const ratio=inRate/16000, n=Math.floor(len/ratio), pcm=new Int16Array(n);
+  for(let i=0;i<n;i++){                       // average each block of input samples down to 16 kHz
+    const a=Math.floor(i*ratio), b=Math.min(len,Math.floor((i+1)*ratio)); let sum=0;
+    for(let k=a;k<b;k++) sum+=all[k];
+    const v=Math.max(-1,Math.min(1,sum/Math.max(1,b-a))); pcm[i]=v<0?v*0x8000:v*0x7fff;
+  }
+  const buf=new ArrayBuffer(44+pcm.length*2), dv=new DataView(buf);
+  const str=(at,t)=>{for(let i=0;i<t.length;i++)dv.setUint8(at+i,t.charCodeAt(i))};
+  str(0,"RIFF");dv.setUint32(4,36+pcm.length*2,true);str(8,"WAVE");str(12,"fmt ");
+  dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);dv.setUint32(24,16000,true);
+  dv.setUint32(28,32000,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);str(36,"data");dv.setUint32(40,pcm.length*2,true);
+  new Int16Array(buf,44).set(pcm);
+  return new Blob([buf],{type:"audio/wav"});
+}
+async function startTalk(){
+  let stt="";
+  try{ stt=await sttModel(); }catch{ say(errCopy("lemonade_unreachable"),true); return; }
+  if(!stt){ say("To talk your notes, download a Whisper model in the Lemonade app (Whisper-Base works well), then click Talk again.",true); return; }
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}}); }
+  catch{ say("Herbie couldn't use the microphone. Allow microphone access for this window, then click Talk again.",true); return; }
+  const ctx=new AudioContext(), src=ctx.createMediaStreamSource(stream), node=ctx.createScriptProcessor(4096,1,1), chunks=[];
+  node.onaudioprocess=e=>chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  src.connect(node); node.connect(ctx.destination);
+  const t0=Date.now();
+  rec={stt,stream,ctx,node,src,chunks,timer:setInterval(()=>{
+    const s=Math.round((Date.now()-t0)/1000);
+    say(`Listening… ${s}s. Click Stop when you're done.`);
+    if(s>=180) stopTalk();                       // 3 minutes is plenty for one job
+  },500)};
+  $("#mic").textContent="■ Stop"; $("#mic").classList.add("rec"); $("#go").disabled=true;
+  say("Listening… Click Stop when you're done.");
+}
+async function stopTalk(){
+  if(!rec) return;
+  const {stt,stream,ctx,node,src,chunks,timer}=rec; rec=null;
+  clearInterval(timer); node.disconnect(); src.disconnect(); stream.getTracks().forEach(t=>t.stop());
+  const rate=ctx.sampleRate; await ctx.close();
+  $("#mic").textContent="🎤 Talk"; $("#mic").classList.remove("rec"); $("#mic").disabled=true;
+  say("Herbie is writing down what you said…");
+  try{
+    if(!chunks.length) throw new Error("empty");
+    const fd=new FormData();
+    fd.append("file",toWav16k(chunks,rate),"notes.wav");
+    fd.append("model",stt); fd.append("response_format","json"); fd.append("language","en"); fd.append("prompt",VOCAB);
+    const r=await api("/api/v1/audio/transcriptions",{method:"POST",body:fd});
+    if(r.status===502) throw llmErr("lemonade_unreachable");
+    const j=await r.json().catch(()=>null);
+    const text=String(j?.text||"").replace(/\s+/g," ").trim();
+    if(!r.ok||!text) throw new Error(j?.error?.message||"no text");
+    const box=$("#notes"); box.value=(box.value.trim()?box.value.trim()+"\n":"")+text;
+    say("Got it. Check the notes, then click Create ticket."); box.focus();
+  }catch(e){
+    say(e?.code==="lemonade_unreachable"?errCopy("lemonade_unreachable"):"Herbie couldn't make out the recording. Try again a little closer to the mic.",true);
+  }finally{ $("#mic").disabled=false; $("#go").disabled=false; }
+}
+$("#mic").onclick=()=>rec?stopTalk():startTalk();
+
 
 function renderAsk(qs){
   $("#out").innerHTML=`<div class="panel ask">
