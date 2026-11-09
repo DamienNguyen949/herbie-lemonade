@@ -1,5 +1,7 @@
 # Herbie: job notes → Jira tickets, on a local AI model
 
+**Demo video:** https://youtu.be/upkcFmf89ao
+
 Herbie turns a freelance IT technician's rough job notes into clean, categorized support tickets
 (Incident / Request / Problem / Change, with priority, root cause, steps taken and resolution),
 then files them in Jira with one click. Type the notes, or just click **Talk** and say them.
