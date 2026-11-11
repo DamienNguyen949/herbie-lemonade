@@ -2,3 +2,7 @@
 .env
 herbie_filed.json
 herbie_jira.log
+
+# Snap photos from jobs (may show client screens or equipment)
+photos/
+
