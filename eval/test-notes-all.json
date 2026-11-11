@@ -1,0 +1,226 @@
+[
+ {
+  "id": "C01",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "High",
+  "note": "Smith Dental front desk - whole office can't get online since 8am, router lights blinking red, patients waiting. Power cycled the modem, called the ISP, their line is down. Set up a phone hotspot so they can check patients in."
+ },
+ {
+  "id": "C02",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "Medium",
+  "note": "Lopez CPA - Maria's Outlook crashes every time she opens it. Rebuilt her mail profile, working now. 30 min."
+ },
+ {
+  "id": "C03",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "High",
+  "note": "Harbor Vet - Client Trax server won't start, nobody can check in pets. Restarted the SQL service, back up after 20 min."
+ },
+ {
+  "id": "C04",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "Medium",
+  "note": "Kim & Associates back office printer jamming and printing blank pages. Replaced toner and ran cleaning cycle. Staff used the front printer in the meantime."
+ },
+ {
+  "id": "C05",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "Low",
+  "note": "Reyes Law - receptionist's second monitor flickers once in a while. Swapped the cable for a spare, looks fine now."
+ },
+ {
+  "id": "C06",
+  "set": "clean",
+  "expected": "Incident",
+  "priority": "High",
+  "note": "Garden Grove Family Medicine - ransom note on the billing PC, files renamed to .lock. Unplugged it from the network right away. Other PCs look OK so far."
+ },
+ {
+  "id": "C07",
+  "set": "clean",
+  "expected": "Request",
+  "priority": "Medium",
+  "note": "New hire starts Monday at Lopez CPA. Needs a laptop, an email account and Lacerte installed."
+ },
+ {
+  "id": "C08",
+  "set": "clean",
+  "expected": "Request",
+  "priority": "Low",
+  "note": "Dr. Patel at Harbor Vet asked for Adobe Acrobat Pro on her PC whenever I have time."
+ },
+ {
+  "id": "C09",
+  "set": "clean",
+  "expected": "Request",
+  "priority": "Medium",
+  "note": "Kim & Associates - new paralegal needs access to the shared Clients folder. Partner approved it by email."
+ },
+ {
+  "id": "C10",
+  "set": "clean",
+  "expected": "Request",
+  "priority": "Low",
+  "note": "Reyes Law wants a spare keyboard and mouse for the conference room."
+ },
+ {
+  "id": "C11",
+  "set": "clean",
+  "expected": "Request",
+  "priority": "Medium",
+  "note": "Smith Dental - hygienist's last day was Friday. Disable her email and remove her from the scheduling software."
+ },
+ {
+  "id": "C12",
+  "set": "clean",
+  "expected": "Problem",
+  "priority": "High",
+  "note": "Third time this month the Lopez CPA QuickBooks company file locks up for everyone around 3pm. Restarting the server fixes it each time. Need to find out why it keeps happening."
+ },
+ {
+  "id": "C13",
+  "set": "clean",
+  "expected": "Problem",
+  "priority": "Medium",
+  "note": "Harbor Vet wifi drops every few days on the exam room tablets. Each time we reboot the access point and it's fine. Want to find the root cause."
+ },
+ {
+  "id": "C14",
+  "set": "clean",
+  "expected": "Problem",
+  "priority": "Medium",
+  "note": "Noticed the Reyes Law backup has failed every Sunday for 3 weeks with no alert. Weekday backups are fine. Need to dig into why."
+ },
+ {
+  "id": "C15",
+  "set": "clean",
+  "expected": "Problem",
+  "priority": "Medium",
+  "note": "Over the last two weeks several users at Garden Grove Family Medicine keep getting kicked out of Epic mid-session. Each ticket got closed after they logged back in. Look for a common cause."
+ },
+ {
+  "id": "C16",
+  "set": "clean",
+  "expected": "Change",
+  "priority": "Medium",
+  "note": "Plan to move the Lopez CPA file server to Azure the weekend of the 21st. Need partner sign-off and a rollback plan first."
+ },
+ {
+  "id": "C17",
+  "set": "clean",
+  "expected": "Change",
+  "priority": "Low",
+  "note": "Upgrade the firmware on the Smith Dental firewall next Tuesday after hours."
+ },
+ {
+  "id": "C18",
+  "set": "clean",
+  "expected": "Change",
+  "priority": "Medium",
+  "note": "Kim & Associates wants to move email from GoDaddy to Microsoft 365. Need to update the MX records and schedule the cutover."
+ },
+ {
+  "id": "C19",
+  "set": "clean",
+  "expected": "Change",
+  "priority": "Low",
+  "note": "Replace Harbor Vet's old front desk PCs with new Windows 11 machines over the next month, one per week."
+ },
+ {
+  "id": "C20",
+  "set": "clean",
+  "expected": "Change",
+  "priority": "Medium",
+  "note": "Roll out the Windows feature update to all 12 PCs at Reyes Law after hours Friday. Test on one PC first."
+ },
+ {
+  "id": "M01",
+  "set": "messy",
+  "expected": "Problem",
+  "priority": "High",
+  "note": "lopez cpa qb froze again, 4th time. restarted svc. need to look at it"
+ },
+ {
+  "id": "M02",
+  "set": "messy",
+  "expected": "Incident",
+  "priority": "Low",
+  "note": "reyes law - same printer jam as last month, cleared it, works"
+ },
+ {
+  "id": "M03",
+  "set": "messy",
+  "expected": "Change",
+  "priority": "Medium",
+  "note": "harbor vet wants guest wifi split off from the exam room network. setting up a vlan thurs night"
+ },
+ {
+  "id": "M04",
+  "set": "messy",
+  "expected": "Request",
+  "priority": "Low",
+  "note": "kim & assoc - can I get Teams on the new paralegal's pc"
+ },
+ {
+  "id": "M05",
+  "set": "messy",
+  "expected": "Incident",
+  "priority": "High",
+  "note": "smith dental xray pc wont see the sensor after windows update last nite. rolled back the driver, good now"
+ },
+ {
+  "id": "M06",
+  "set": "messy",
+  "expected": "Problem",
+  "priority": "High",
+  "note": "3 users at family med getting epic timeouts since the new firewall went in. not sure why yet, collecting logs"
+ },
+ {
+  "id": "M07",
+  "set": "messy",
+  "expected": "Change",
+  "priority": "Low",
+  "note": "pushing a GPO to lock screens after 10 min at reyes law, office mgr approved"
+ },
+ {
+  "id": "M08",
+  "set": "messy",
+  "expected": "Request",
+  "priority": "Low",
+  "note": "lopez cpa - partner wants a 2nd monitor at his desk. ordered, install next wk"
+ },
+ {
+  "id": "M09",
+  "set": "messy",
+  "expected": "Incident",
+  "priority": "High",
+  "note": "harbor vet card reader down at front desk, they ran cards on the phone app. rebooted terminal, fixed"
+ },
+ {
+  "id": "M10",
+  "set": "messy",
+  "expected": "Change",
+  "priority": "Medium",
+  "note": "swapping out smith dental's network switch tonight, old one is end of life"
+ },
+ {
+  "id": "M11",
+  "set": "messy",
+  "expected": "Problem",
+  "priority": "Medium",
+  "note": "every monday the scanner at kim & associates stops saving to the share. remapped it again. gotta find out whats resetting it"
+ },
+ {
+  "id": "M12",
+  "set": "messy",
+  "expected": "Incident",
+  "priority": "Medium",
+  "note": "family med - dr chen locked out of epic after a pw change. reset with epic support, he's in now"
+ }
+]

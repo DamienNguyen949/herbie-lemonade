@@ -16,6 +16,7 @@ $root = [IO.Path]::GetFullPath($PSScriptRoot)
 if (-not $EnvFile) { $EnvFile = Join-Path $root ".env" }
 $filedPath = Join-Path $root "herbie_filed.json"
 $logPath = Join-Path $root "herbie_jira.log"
+$photoDir = Join-Path $root "photos"   # Snap photos, named <ticket id>-<n>.jpg. Never served as a page file.
 $url = "http://localhost:$Port/"
 
 # Only Herbie's own page files are served; never .env, logs or ticket records.
@@ -151,6 +152,14 @@ function Add-Heading($list, [string]$text) {
 # Jira description (Atlassian Document Format): one heading per section, then the original notes as a quote.
 function New-Description($t) {
   $c = [System.Collections.ArrayList]::new()
+  # ITIL details first: who asked, what's affected, impact x urgency, approval (only the ones that are filled in).
+  $details = @()
+  foreach ($pair in @(@("Client", "client"), @("Requested by", "requested_by"), @("Affected item", "affected_item"))) {
+    $v = [string]$t.($pair[1]); if ($v.Trim()) { $details += "$($pair[0]): $($v.Trim())" }
+  }
+  if ($t.impact -and $t.urgency) { $details += "Impact: $($t.impact) | Urgency: $($t.urgency) | Priority: $($t.priority)" }
+  $ap = [string]$t.approved_by; if ($ap.Trim()) { $details += "Approved by: $($ap.Trim())" }
+  if ($details.Count) { Add-Heading $c "Details"; Add-Paras $c ($details -join "`n") }
   foreach ($pair in @(@("Issue", "issue"), @("Root cause", "root_cause"), @("Steps taken", "steps_taken"), @("Resolution", "resolution"), @("Reason for category", "reason"))) {
     Add-Heading $c $pair[0]; Add-Paras $c ([string]$t.($pair[1]))
   }
@@ -255,10 +264,53 @@ function Get-Filed {
   if (Test-Path -LiteralPath $filedPath) {
     try {
       (ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($filedPath))).PSObject.Properties |
-        ForEach-Object { $h[$_.Name] = @{ key = $_.Value.key; category = $_.Value.category; at = $_.Value.at } }
+        ForEach-Object { $h[$_.Name] = @{ key = $_.Value.key; category = $_.Value.category; at = $_.Value.at; photos = @($_.Value.photos | Where-Object { $_ }) } }
     } catch { }
   }
   return $h
+}
+
+# ---------------- Snap photos ----------------
+# Herbie ids and photo names are checked so a request can never reach a file outside the photos folder.
+function Test-Hid([string]$hid) { return $hid -match '^[A-Za-z0-9-]{1,64}$' }
+function Test-PhotoName([string]$name) { return $name -match '^[A-Za-z0-9-]{1,64}-\d{1,3}\.jpg$' }
+function Get-TicketPhotos([string]$hid) {
+  if (-not (Test-Hid $hid) -or -not (Test-Path -LiteralPath $photoDir)) { return @() }
+  return @(Get-ChildItem -LiteralPath $photoDir -Filter "$hid-*.jpg" -File | Where-Object { Test-PhotoName $_.Name } | Sort-Object Name | ForEach-Object { $_.Name })
+}
+function Save-Photo([string]$hid, [string]$data) {
+  if (-not (Test-Hid $hid)) { throw "rejected|Bad ticket id." }
+  if ($data -notmatch '^data:image/jpeg;base64,([A-Za-z0-9+/=]+)$') { throw "rejected|The photo must be a JPEG." }
+  $bytes = [Convert]::FromBase64String($matches[1])
+  if ($bytes.Length -gt 8MB) { throw "rejected|The photo is too big." }
+  [void][IO.Directory]::CreateDirectory($photoDir)
+  $n = 1; while (Test-Path -LiteralPath (Join-Path $photoDir "$hid-$n.jpg")) { $n++ }
+  $name = "$hid-$n.jpg"
+  [IO.File]::WriteAllBytes((Join-Path $photoDir $name), $bytes)
+  Write-Log "Saved photo $name ($([math]::Round($bytes.Length / 1KB)) KB)"
+  return $name
+}
+# Attach this ticket's photos that aren't in Jira yet. Returns the names that are attached.
+function Add-JiraPhotos($cfg, [string]$key, [string]$hid, $already) {
+  $done = [System.Collections.ArrayList]@($already | Where-Object { $_ })
+  foreach ($name in (Get-TicketPhotos $hid)) {
+    if ($done -contains $name) { continue }
+    $msg = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, "$($cfg.JIRA_SITE)/rest/api/3/issue/$key/attachments")
+    $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("$($cfg.JIRA_EMAIL):$($cfg.JIRA_TOKEN)"))
+    $msg.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Basic", $auth)
+    [void]$msg.Headers.TryAddWithoutValidation("X-Atlassian-Token", "no-check")   # Jira requires this for uploads
+    $file = [System.Net.Http.ByteArrayContent]::new([IO.File]::ReadAllBytes((Join-Path $photoDir $name)))
+    $file.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::new("image/jpeg")
+    $form = [System.Net.Http.MultipartFormDataContent]::new()
+    $form.Add($file, "file", "herbie-photo-" + ($name -replace '^.*-(\d+)\.jpg$', '$1') + ".jpg")
+    $msg.Content = $form
+    try {
+      $resp = $client.SendAsync($msg).GetAwaiter().GetResult()
+      if ($resp.IsSuccessStatusCode) { [void]$done.Add($name); Write-Log "  $key attached $name" }
+      else { Write-Log "  $key photo $name not attached ($([int]$resp.StatusCode))" }
+    } catch { Write-Log "  $key photo $name not attached ($($_.Exception.Message))" }
+  }
+  return @($done)
 }
 function Save-Filed($h) { [IO.File]::WriteAllText($filedPath, (ConvertTo-Json -InputObject $h -Depth 5), [Text.UTF8Encoding]::new($false)) }
 
@@ -297,7 +349,11 @@ function Send-ToJira($t) {
       $result.key = $prior.key
     }
   }
-  $filed[$hid] = @{ key = $result.key; category = [string]$t.category; at = (Get-Date).ToString("o") }
+  # Photos: attach any this ticket has that Jira doesn't yet (a replacement ticket gets them all again).
+  $attached = if ($prior -and $prior.key -eq $result.key) { @($prior.photos) } else { @() }
+  $attached = @(Add-JiraPhotos $cfg $result.key $hid $attached)
+  $result.photos = $attached.Count
+  $filed[$hid] = @{ key = $result.key; category = [string]$t.category; at = (Get-Date).ToString("o"); photos = $attached }
   Save-Filed $filed
   $result.url = "$($cfg.JIRA_SITE)/browse/$($result.key)"
   return $result
@@ -345,6 +401,21 @@ try {
           Write-Log "  FAILED: $message"
           Send-Json $res 502 @{ error = @{ code = $code; message = $message } }
         }
+      } elseif ($path -eq "/herbie/photo" -and $req.HttpMethod -eq "POST") {
+        # Save a Snap photo for a ticket: {"hid": "...", "data": "data:image/jpeg;base64,..."}
+        $sr = [IO.StreamReader]::new($req.InputStream, [Text.Encoding]::UTF8)
+        $p = ConvertFrom-Json -InputObject $sr.ReadToEnd()
+        try { Send-Json $res 200 @{ name = (Save-Photo ([string]$p.hid) ([string]$p.data)) } }
+        catch {
+          $parts = "$($_.Exception.Message)" -split '\|', 2
+          Send-Json $res 400 @{ error = @{ code = "rejected"; message = $parts[-1] } }
+        }
+      } elseif ($path -eq "/herbie/photo" -and $req.HttpMethod -eq "GET") {
+        # Show a saved photo in Past tickets: /herbie/photo?name=<ticket id>-1.jpg
+        $name = [string]$req.QueryString["name"]
+        $file = Join-Path $photoDir $name
+        if ((Test-PhotoName $name) -and (Test-Path -LiteralPath $file -PathType Leaf)) { Send-Bytes $res 200 "image/jpeg" ([IO.File]::ReadAllBytes($file)) }
+        else { Send-Bytes $res 404 "text/plain" ([Text.Encoding]::UTF8.GetBytes("Not found")) }
       } elseif ($path.StartsWith("/api/")) {
         # Pass through to Lemonade
         $msg = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::new($req.HttpMethod), $Lemonade.TrimEnd("/") + $req.Url.PathAndQuery)

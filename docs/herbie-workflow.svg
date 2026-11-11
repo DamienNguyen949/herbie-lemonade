@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Inter, DejaVu Sans, sans-serif" xmlns:c2pa="http://c2pa.org/manifest">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9fb3d1"/>
+    </marker>
+    <marker id="y" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#f5d547"/>
+    </marker>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="#11162a"/>
+
+  <!-- original lemon icon (not the Lemonade logo) -->
+  <g transform="translate(92 70) rotate(-25)">
+    <path d="M-38 0 C -30 -30, 30 -30, 38 0 C 30 30, -30 30, -38 0 Z" fill="#f5d547"/>
+    <path d="M-38 0 L -46 -3 L -44 4 Z M38 0 L 46 -3 L 44 4 Z" fill="#f5d547"/>
+    <ellipse cx="-10" cy="-10" rx="14" ry="5" fill="#fff6b8" opacity="0.8"/>
+    <path d="M30 -26 C 38 -40, 52 -40, 58 -34 C 50 -28, 40 -26, 30 -26 Z" fill="#7bc96f"/>
+  </g>
+  <text x="150" y="68" fill="#ffffff" font-size="42" font-weight="800">Herbie</text>
+  <text x="300" y="68" fill="#f5d547" font-size="42" font-weight="800">powered by AMD Lemonade</text>
+  <text x="150" y="106" fill="#9fb3d1" font-size="21">Every AI step (voice notes, photos, tickets and read-back) runs on Lemonade, right on this laptop. No cloud AI.</text>
+
+  <!-- laptop boundary -->
+  <rect x="40" y="140" width="1220" height="790" rx="22" fill="#161c2c" stroke="#3b4a6b" stroke-width="2.5" stroke-dasharray="12 9"/>
+  <text x="70" y="182" fill="#9fb3d1" font-size="20" font-weight="600">THIS LAPTOP  ·  works offline</text>
+
+  <!-- technician -->
+  <rect x="70" y="425" width="210" height="180" rx="16" fill="#1f2740" stroke="#3b4a6b" stroke-width="2"/>
+  <text x="175" y="475" fill="#ffffff" font-size="24" font-weight="700" text-anchor="middle">Technician</text>
+  <text x="175" y="510" fill="#c9d6ea" font-size="18" text-anchor="middle">types job notes,</text>
+  <text x="175" y="537" fill="#c9d6ea" font-size="18" text-anchor="middle">clicks Talk, or</text>
+  <text x="175" y="564" fill="#c9d6ea" font-size="18" text-anchor="middle">snaps a photo</text>
+
+  <!-- herbie app -->
+  <rect x="350" y="400" width="250" height="230" rx="16" fill="#1f2740" stroke="#7dd3fc" stroke-width="2.5"/>
+  <text x="475" y="448" fill="#7dd3fc" font-size="24" font-weight="700" text-anchor="middle">Herbie app</text>
+  <text x="475" y="482" fill="#c9d6ea" font-size="17" text-anchor="middle">index.html, own window</text>
+  <text x="475" y="510" fill="#c9d6ea" font-size="17" text-anchor="middle">records voice, sizes photos</text>
+  <text x="475" y="538" fill="#c9d6ea" font-size="17" text-anchor="middle">shows ticket to review</text>
+  <text x="475" y="566" fill="#c9d6ea" font-size="17" text-anchor="middle">and edit (ITIL fields)</text>
+  <text x="475" y="594" fill="#c9d6ea" font-size="17" text-anchor="middle">plays the read-back</text>
+
+  <!-- helper -->
+  <rect x="670" y="425" width="220" height="180" rx="16" fill="#1f2740" stroke="#3b4a6b" stroke-width="2"/>
+  <text x="780" y="471" fill="#ffffff" font-size="21" font-weight="700" text-anchor="middle">serve-herbie.ps1</text>
+  <text x="780" y="505" fill="#c9d6ea" font-size="17" text-anchor="middle">tiny local server</text>
+  <text x="780" y="531" fill="#c9d6ea" font-size="17" text-anchor="middle">(PowerShell, no installs)</text>
+  <text x="780" y="557" fill="#c9d6ea" font-size="17" text-anchor="middle">keeps Jira token safe</text>
+  <text x="780" y="583" fill="#c9d6ea" font-size="17" text-anchor="middle">saves photos</text>
+
+  <!-- photos folder -->
+  <rect x="680" y="690" width="200" height="100" rx="14" fill="#1f2740" stroke="#3b4a6b" stroke-width="2"/>
+  <text x="780" y="730" fill="#ffffff" font-size="20" font-weight="700" text-anchor="middle">photos folder</text>
+  <text x="780" y="760" fill="#c9d6ea" font-size="16" text-anchor="middle">kept with each ticket</text>
+
+  <!-- lemonade -->
+  <rect x="950" y="200" width="280" height="705" rx="18" fill="none" stroke="#f5d547" stroke-width="10" opacity="0.55" filter="url(#glow)"/>
+  <rect x="950" y="200" width="280" height="705" rx="18" fill="#2a2a14" stroke="#f5d547" stroke-width="4"/>
+  <rect x="1010" y="186" width="160" height="28" rx="14" fill="#f5d547"/>
+  <text x="1090" y="206" fill="#11162a" font-size="15" font-weight="800" text-anchor="middle" letter-spacing="1.5">THE AI ENGINE</text>
+  <text x="1090" y="250" fill="#f5d547" font-size="27" font-weight="800" text-anchor="middle">AMD Lemonade</text>
+  <text x="1090" y="276" fill="#e8dc9a" font-size="16" text-anchor="middle">local AI server, OpenAI-style API</text>
+
+  <rect x="975" y="295" width="230" height="135" rx="14" fill="#1f2740" stroke="#f5d547" stroke-width="2"/>
+  <text x="1090" y="333" fill="#ffffff" font-size="21" font-weight="700" text-anchor="middle">Whisper-Base</text>
+  <text x="1090" y="361" fill="#c9d6ea" font-size="17" text-anchor="middle">speech → text (NPU)</text>
+  <text x="1090" y="387" fill="#c9d6ea" font-size="15" text-anchor="middle">with Herbie's IT word list</text>
+  <text x="1090" y="413" fill="#8a97ad" font-size="14" text-anchor="middle">/audio/transcriptions</text>
+
+  <rect x="975" y="450" width="230" height="140" rx="14" fill="#1f2740" stroke="#f5d547" stroke-width="2"/>
+  <text x="1090" y="489" fill="#ffffff" font-size="21" font-weight="700" text-anchor="middle">Qwen3-4B-Instruct</text>
+  <text x="1090" y="517" fill="#c9d6ea" font-size="17" text-anchor="middle">notes → ITIL ticket (GPU)</text>
+  <text x="1090" y="543" fill="#c9d6ea" font-size="15" text-anchor="middle">Herbie's rules + examples</text>
+  <text x="1090" y="569" fill="#8a97ad" font-size="14" text-anchor="middle">/chat/completions (JSON)</text>
+
+  <!-- omni bundle -->
+  <rect x="967" y="610" width="246" height="280" rx="14" fill="#262410" stroke="#f5d547" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1090" y="640" fill="#f5d547" font-size="19" font-weight="800" text-anchor="middle">LMX-Omni-5.5B-Lite</text>
+  <text x="1090" y="662" fill="#e8dc9a" font-size="14" text-anchor="middle">Lemonade Omni bundle</text>
+
+  <rect x="980" y="675" width="220" height="100" rx="12" fill="#1f2740" stroke="#f5d547" stroke-width="2"/>
+  <text x="1090" y="705" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle">Qwen3.5-4B vision</text>
+  <text x="1090" y="731" fill="#c9d6ea" font-size="15" text-anchor="middle">photo → error code, serial,</text>
+  <text x="1090" y="753" fill="#c9d6ea" font-size="15" text-anchor="middle">service tag (Snap)</text>
+
+  <rect x="980" y="785" width="220" height="95" rx="12" fill="#1f2740" stroke="#f5d547" stroke-width="2"/>
+  <text x="1090" y="815" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle">Kokoro voice</text>
+  <text x="1090" y="841" fill="#c9d6ea" font-size="15" text-anchor="middle">ticket → spoken read-back</text>
+  <text x="1090" y="865" fill="#8a97ad" font-size="13" text-anchor="middle">/audio/speech</text>
+
+  <!-- jira (outside) -->
+  <rect x="1320" y="690" width="230" height="160" rx="16" fill="#1f2740" stroke="#3b4a6b" stroke-width="2"/>
+  <text x="1435" y="738" fill="#ffffff" font-size="24" font-weight="700" text-anchor="middle">Jira</text>
+  <text x="1435" y="770" fill="#c9d6ea" font-size="17" text-anchor="middle">optional, your own site</text>
+  <text x="1435" y="796" fill="#c9d6ea" font-size="17" text-anchor="middle">ticket + photos</text>
+  <text x="1435" y="822" fill="#c9d6ea" font-size="17" text-anchor="middle">queued if offline</text>
+
+  <!-- arrows -->
+  <line x1="280" y1="515" x2="344" y2="515" stroke="#9fb3d1" stroke-width="3" marker-end="url(#a)"/>
+  <line x1="600" y1="495" x2="664" y2="495" stroke="#9fb3d1" stroke-width="3" marker-end="url(#a)"/>
+  <line x1="670" y1="540" x2="606" y2="540" stroke="#9fb3d1" stroke-width="3" marker-end="url(#a)"/>
+  <text x="635" y="483" fill="#8a97ad" font-size="13" text-anchor="middle">ask</text>
+  <text x="635" y="562" fill="#8a97ad" font-size="13" text-anchor="middle">answer</text>
+  <path d="M890 455 C 930 455, 930 362, 969 362" fill="none" stroke="#f5d547" stroke-width="3" marker-end="url(#y)"/>
+  <path d="M890 515 L 969 515" fill="none" stroke="#f5d547" stroke-width="3" marker-end="url(#y)"/>
+  <path d="M890 575 C 930 575, 930 725, 974 725" fill="none" stroke="#f5d547" stroke-width="3" marker-end="url(#y)"/>
+  <path d="M890 590 C 940 600, 925 832, 974 832" fill="none" stroke="#f5d547" stroke-width="3" marker-end="url(#y)"/>
+  <line x1="780" y1="605" x2="780" y2="684" stroke="#9fb3d1" stroke-width="3" marker-end="url(#a)"/>
+  <path d="M780 790 L 780 918 L 1435 918 L 1435 856" fill="none" stroke="#9fb3d1" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#a)"/>
+  <text x="560" y="878" fill="#c9d6ea" font-size="17" text-anchor="middle">On Save: only the finished ticket</text>
+  <text x="560" y="902" fill="#c9d6ea" font-size="17" text-anchor="middle">and its photos leave the laptop</text>
+
+  <!-- step strip -->
+  <text x="60" y="972" fill="#8a97ad" font-size="17">1. Type, talk or snap  ·  2. Lemonade hears, sees and writes: Whisper, Omni, Qwen  ·  3. Review, hear it, edit  ·  4. Save to Jira (optional)  ·  No cloud AI fees</text>
+<metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYToxODMyMWVhYy04OWI4LTQ3YjktOGUyMS02ODgyOTE4Nzc3YmYAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaGjbrN8L0o9ArfcYJ9I4YuoAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDplZjRlZDlmMC1kMzAxLTRlNzMtOTI4OS04NTZjMDI4ZTQ5YjNscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNonhJstLcBh1lRNwE2f8kNowAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFgg1/vkBOKhqitzqLGIcUSrCsxw/raC1BZM1Dtj1bc8gNikZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaOO47G1ovC9ypVbAIvVKp9sAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIOqgdPszfG0WqAiaFXIxIV+slws+WuadSgeCx22gAKaaZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GSVNZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjE4MzIxZWFjLTg5YjgtNDdiOS04ZTIxLTY4ODI5MTg3NzdiZi9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjk1YWVjY2E4LTkzM2YtNGYzZS1hODQyLTRiMWFlOWI1YWQ4ZnJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCDX++QE4qGqK3OosYhxRKsKzHD+toLUFkzUO2PVtzyA2KJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggjPNvl9ONEWEVI61RpgVF0ehbqh/6ePLHO8x3ZPJode6iY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggE7n+3SdX6A9mrPQpWSTK8X3hEIeXXns6tOhDfgr3wmp0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQEdmYuLl0Yhj/H8qoGdr7arP4FGhjc8buORzDCvX7ADMzcVZvVh89bbQw61ctPe85+q/W9JmBGEEX8hhxQHK3Mo=</c2pa:manifest></metadata></svg>

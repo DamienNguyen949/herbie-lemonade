@@ -1,0 +1,28 @@
+Herbie performance eval - 2026-11-08 09:40
+Everything ran locally on Lemonade 2026.45.3 on Windows 11 Pro. Cost: $0.
+
+Laptop:   ASUS Zenbook S 16 (UM5606WA)
+CPU:      AMD Ryzen AI 9 365 (10 cores / 20 threads)
+GPU:      AMD Radeon 880M (integrated, gfx1150)
+NPU:      AMD XDNA 2
+RAM:      24 GB (Windows reports 16 GB usable; the rest is shared with the Radeon 880M)
+Windows:  Windows 11 Pro (build 26200)
+Lemonade placed: Qwen3-4B on the GPU (llama.cpp, Vulkan, Q4_K_M) | Whisper-Base on the NPU | Kokoro on the CPU
+
+Models: chat Qwen3-4B-Instruct-2507-GGUF | speech-to-text Whisper-Base | text-to-speech kokoro-v1 (voices: nova, echo)
+Test set: 32 job notes (20 clean, 12 messy shorthand), expected ITIL category for each.
+
+CATEGORY ACCURACY
+  Typed notes:  30/32 (94%)
+  Voice notes:  29/32 (91%)  (Kokoro speaks the note -> Whisper -> Herbie)
+  clean  notes: text 20/20, voice 20/20
+  messy  notes: text 10/12, voice 9/12
+
+WHISPER (speech-to-text)
+  Word error rate: 13% (80 errors in 633 words; shorthand like "qb" and "svc" counts as errors when spoken out)
+  IT terms heard right: 12/15
+  Speed: 242.5 s of audio transcribed, avg 0.4 s per note
+
+SPEED (average per note)
+  Ticket from typed notes:  12.6 s
+  Ticket from voice notes:  13 s  (+ 0.4 s to transcribe)

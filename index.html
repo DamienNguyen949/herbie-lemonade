@@ -88,6 +88,9 @@ dd{margin:0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 @media (max-width:480px){dl{grid-template-columns:1fr} dd{margin-bottom:6px} details.item summary{grid-template-columns:auto 1fr auto} details.item .meta{grid-column:2} details.item .chev{grid-column:3;grid-row:1}}
 .empty{border:1px dashed var(--line);border-radius:12px;padding:24px;text-align:center;color:var(--muted)}
 .itemActions{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px}
+.speak{padding:2px 8px;font-size:14px;line-height:1.4;min-height:0}
+.field.missing textarea{border-color:var(--crit);box-shadow:0 0 0 2px color-mix(in srgb,var(--crit) 25%,transparent)}
+.req{color:var(--crit)}
 .confirm{border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--sunk)}
 .confirm.danger{border-left-color:var(--crit)}
 button.danger{color:var(--crit);border-color:var(--crit);background:transparent}
@@ -95,6 +98,17 @@ button.danger{color:var(--crit);border-color:var(--crit);background:transparent}
 .itemMsg.err{color:var(--crit)}
 .edited{font:12px var(--mono);color:var(--muted)}
 .raw{font:13px/1.5 var(--mono);background:var(--sunk);border-radius:8px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+/* Snap it: photo → facts the tech checks before they go into the notes */
+.snap{border-left:3px solid var(--accent)}
+.snapBody{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:start}
+.snapBody img{width:140px;max-height:180px;object-fit:contain;border-radius:8px;background:var(--sunk);border:1px solid var(--line)}
+.snapBody .field input{font-family:var(--mono);font-size:14px;padding:7px 10px}
+@media (max-width:480px){.snapBody{grid-template-columns:1fr}.snapBody img{width:100%}}
+#notes.drop{outline:2px dashed var(--accent);outline-offset:2px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.thumbs img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--sunk);cursor:zoom-in}
+.thumb{position:relative}
+.thumb button{position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:999px;font-size:12px;line-height:18px}
 /* Save celebration: a card that pops up over Herbie; one click dismisses it */
 .cele{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(10,14,24,.55);cursor:pointer}
 .celeCard{position:relative;width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;
@@ -154,15 +168,19 @@ button.danger{color:var(--crit);border-color:var(--crit);background:transparent}
   <section id="viewNew" class="wrap" style="gap:16px">
     <div>
       <h1>Please enter job notes.</h1>
-      <p class="lede">Type or paste your notes from the job, or click Talk and say them. Herbie turns them into a ticket for you to review before saving. Your notes never leave this computer.</p>
+      <p class="lede">Type or paste your notes from the job, click Talk and say them, or click Snap to add a photo of an error or device label. Herbie turns them into a ticket for you to review before saving. Your notes and photos never leave this computer.</p>
     </div>
     <textarea id="notes" placeholder="e.g. Dental office, front desk PC. User locked out Monday AM. Unlocked in ADUC, relocked 20 min later. Old password saved on her phone email. Updated phone, unlocked, held."></textarea>
     <div class="row">
       <button id="go" class="primary">Create ticket</button>
       <button id="mic" title="Say your notes out loud. Speech is turned into text by Lemonade on this computer.">🎤 Talk</button>
+      <button id="snapBtn" title="Add a photo of an error screen or device label. Herbie reads it with a vision model on this computer. You can also paste or drop a picture into the notes.">📷 Snap</button>
+      <input id="snapFile" type="file" accept="image/*" hidden>
       <button id="stop" hidden>Stop</button>
     </div>
     <div id="msg" class="msg" role="status"></div>
+    <div id="snapOut"></div>
+    <div id="photoTray" class="thumbs" hidden></div>
     <div id="out"></div>
   </section>
 
@@ -213,10 +231,16 @@ const $ = s => document.querySelector(s);
 const CATS = ["Incident","Request","Problem","Change"];
 const PRIS = ["Low","Medium","High","Critical"];
 const STATS = ["Open","Needs follow-up","Waiting on client","Resolved"];
+const LEVELS = ["Low","Medium","High"];
+// ITIL: priority comes from impact (how many are affected) x urgency (how fast it's needed).
+const PRIORITY_MATRIX = {High:{High:"Critical",Medium:"High",Low:"Medium"},Medium:{High:"High",Medium:"Medium",Low:"Low"},Low:{High:"Medium",Medium:"Low",Low:"Low"}};
+const priorityFrom=(impact,urgency)=>PRIORITY_MATRIX[impact]?.[urgency]||"";
 const FIELDS = [
-  ["client","Client"],["summary","Summary"],["issue","Issue"],["root_cause","Root cause"],
-  ["steps_taken","Steps taken"],["resolution","Resolution"],["reason","Reason for category"]
+  ["client","Client"],["requested_by","Requested by"],["affected_item","Affected item"],["summary","Summary"],["issue","Issue"],
+  ["root_cause","Root cause"],["steps_taken","Steps taken"],["resolution","Resolution"],["approved_by","Approved by"],["reason","Reason for category"]
 ];
+const OPTIONAL = new Set(["requested_by","affected_item","approved_by"]);   // hidden in Past tickets when empty
+const needsApproval=cat=>cat==="Change"||cat==="Request";               // where "Approved by" is shown
 const RULES = `You are Herbie, a ticket assistant for an IT support technician. Turn rough job notes into one ticket.
 
 Category definitions:
@@ -228,7 +252,22 @@ Category definitions:
 Rules:
 - Don't invent details that aren't in the notes. Use "Unknown" or "Not stated" when something is missing.
 - If the notes are too thin to ticket without guessing, or could fit two categories, set "status" to "needs_info" and list 1-4 short questions.
-- If the notes give no priority, choose one and set "priority_assumed" to true with a short "priority_reason".
+- Set "impact" and "urgency" (ITIL). If the notes don't make them clear, choose and set "priority_assumed" to true with a short "priority_reason".
+
+Impact (how many people or how much of the business is affected):
+- High: the whole office, or a business-critical system (can't see patients, can't bill, security breach).
+- Medium: several users or one department.
+- Low: one user, or there's a workaround.
+- Impact is about the business, not headcount. If one device or app stops a core function (taking payments, X-rays or other patient care, checking in clients, billing, filing with a court), impact is at least Medium, and High if the office can't do that work at all.
+Urgency (how fast it's needed, as first reported):
+- High: work is stopped now, or harm is growing (ransomware, outage).
+- Medium: work is slowed, or it's needed today or this week.
+- Low: it can wait, or it's planned work.
+
+Who and what:
+- "client": the company or office. "requested_by": the person who asked or reported it, with phone or email if given; "" if not stated.
+- "affected_item": the device, app or service affected (e.g. "Front desk PC", "Outlook", "HP LaserJet M404n, serial VNB3K12345"); "" if not stated.
+- "approved_by": only if the notes say someone approved the work or purchase (e.g. "owner OK'd it" -> "Owner (verbal)"); otherwise "".
 
 Status:
 - Open: logged, work hasn't really started.
@@ -237,7 +276,7 @@ Status:
 - Resolved: fixed and done.
 
 Reply with only one JSON object in this shape:
-{"status":"ticket"|"needs_info","questions":[string],"ticket":{"category":"Incident|Request|Problem|Change","priority":"Low|Medium|High|Critical","priority_assumed":boolean,"priority_reason":string,"client":string,"summary":string,"issue":string,"root_cause":string,"steps_taken":string,"resolution":string,"ticket_status":"Open|Needs follow-up|Waiting on client|Resolved","reason":string}}
+{"status":"ticket"|"needs_info","questions":[string],"ticket":{"category":"Incident|Request|Problem|Change","impact":"Low|Medium|High","urgency":"Low|Medium|High","priority_assumed":boolean,"priority_reason":string,"client":string,"requested_by":string,"affected_item":string,"approved_by":string,"summary":string,"issue":string,"root_cause":string,"steps_taken":string,"resolution":string,"ticket_status":"Open|Needs follow-up|Waiting on client|Resolved","reason":string}}
 For needs_info, "ticket" may be null.
 
 Extra guidance (helps small local models):
@@ -246,16 +285,17 @@ Extra guidance (helps small local models):
 - needs_info is only for notes so short or vague that you can't tell what the problem is (e.g. "printer broken", "pc slow"). Never ask questions just to collect nice-to-have details.
 - If work is blocked until the client does something, make a ticket with ticket_status "Waiting on client". Don't ask questions.
 - If the technician still owes the next step (come back, order a part, investigate), use "Needs follow-up", not "Open".
+- Lines after "From photo" were read from a photo. Copy any error code, serial number or service tag from them exactly into "issue", and put the device with its serial number or service tag in "affected_item".
 
 Examples:
 Notes: "Law office. 2 users' Outlook kept asking for password since Tuesday. Found stale creds in Credential Manager, cleared them, signed back in. Fixed."
-{"status":"ticket","questions":[],"ticket":{"category":"Incident","priority":"Medium","priority_assumed":true,"priority_reason":"two users affected, now fixed","client":"Law office","summary":"Outlook repeatedly prompting 2 users for password","issue":"Outlook kept prompting two users for their password since Tuesday.","root_cause":"Stale saved credentials in Windows Credential Manager.","steps_taken":"Cleared stale credentials in Credential Manager; signed users back in.","resolution":"Prompts stopped; Outlook working.","ticket_status":"Resolved","reason":"Something stopped working and was fixed in the same visit."}}
+{"status":"ticket","questions":[],"ticket":{"category":"Incident","impact":"Medium","urgency":"Medium","priority_assumed":true,"priority_reason":"two users affected, work slowed","client":"Law office","requested_by":"","affected_item":"Outlook on 2 users' PCs","approved_by":"","summary":"Outlook repeatedly prompting 2 users for password","issue":"Outlook kept prompting two users for their password since Tuesday.","root_cause":"Stale saved credentials in Windows Credential Manager.","steps_taken":"Cleared stale credentials in Credential Manager; signed users back in.","resolution":"Prompts stopped; Outlook working.","ticket_status":"Resolved","reason":"Something stopped working and was fixed in the same visit."}}
 Notes: "Pizza place. Owner wants a label printer set up for online orders. She needs to buy it first, sent her 2 options."
-{"status":"ticket","questions":[],"ticket":{"category":"Request","priority":"Low","priority_assumed":true,"priority_reason":"new setup, nothing broken","client":"Pizza place","summary":"Set up label printer for online orders","issue":"Owner requested a label printer for online orders.","root_cause":"Not applicable","steps_taken":"Sent owner two printer options to buy.","resolution":"Not yet; waiting for purchase.","ticket_status":"Waiting on client","reason":"Standard request; nothing is broken."}}
+{"status":"ticket","questions":[],"ticket":{"category":"Request","impact":"Low","urgency":"Low","priority_assumed":true,"priority_reason":"new setup, nothing broken","client":"Pizza place","requested_by":"Owner","affected_item":"Label printer (new)","approved_by":"","summary":"Set up label printer for online orders","issue":"Owner requested a label printer for online orders.","root_cause":"Not applicable","steps_taken":"Sent owner two printer options to buy.","resolution":"Not yet; waiting for purchase.","ticket_status":"Waiting on client","reason":"Standard request; nothing is broken."}}
 Notes: "pc slow"
 {"status":"needs_info","questions":["Which client and which PC?","What is slow (startup, one app, everything)?","What have you tried so far?"],"ticket":null}`;
 
-let ctl=null, tickets=[], extra=[], lastStats=null;
+let ctl=null, tickets=[], extra=[], lastStats=null, pendingPhotos=[];
 const say=(t,err)=>{const m=$("#msg");m.textContent=t||"";m.classList.toggle("err",!!err)};
 const sayHist=(t,err)=>{const m=$("#histMsg");m.textContent=t||"";m.classList.toggle("err",!!err)};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -279,7 +319,9 @@ async function loadModels(){
       pick.innerHTML=`<option value="">No chat model</option>`; model="";
       say(errCopy("no_model"),true); return;
     }
-    if(!ids.includes(model)) model=ids[0];
+    // Tickets: Qwen3-4B scored 30/32 on Herbie's test notes. Omni-Lite scored 19/32 (it kept asking questions
+    // instead of writing the ticket), so Omni handles photos and read-aloud, not tickets, unless picked here.
+    if(!ids.includes(model)) model=ids.find(id=>/qwen3-4b/i.test(id))||ids.find(id=>/qwen3/i.test(id)&&!isOmni(id))||ids.find(id=>!isOmni(id))||ids[0];
     pick.innerHTML=ids.map(id=>`<option${id===model?" selected":""}>${esc(id)}</option>`).join("");
     localStorage.setItem("herbie.model",model);
     if($("#msg").classList.contains("err")) say("");
@@ -291,15 +333,44 @@ async function loadModels(){
 $("#model").onchange=e=>{model=e.target.value;localStorage.setItem("herbie.model",model)};
 $("#model").addEventListener("focus",()=>{if(!model)loadModels()});
 
-// Small local models sometimes wrap JSON in a thinking block or code fences; pull out the object.
+/* ---------- Lemonade Omni ----------
+   An Omni model (e.g. LMX-Omni-5.5B-Lite) is one name for a bundle: a chat+vision LLM, speech-to-text,
+   text-to-speech and image generation. Herbie uses Omni where it tested best: reading photos (Snap) and
+   the bundle's own voice (Kokoro) to read tickets aloud. Tickets stay on Qwen3-4B (see loadModels).
+   Omni likes to call its tools on its own (it tried to read a photo's answer aloud unasked), so Herbie
+   asks it to answer with text only. */
+const omniModel=ms=>ms.find(m=>isOmni(m.id)&&m.id===model)||ms.find(m=>isOmni(m.id)&&parts(m).length)||null;
+const isOmni=id=>/omni/i.test(String(id||""));
+const OMNI_TEXT_ONLY="Answer with text only. Do not call any tools and do not generate audio or images.";
+function omniBody(body){
+  if(!isOmni(body.model)) return body;
+  return {...body,tool_choice:"none",chat_template_kwargs:{enable_thinking:false}};
+}
+let modelInfo=null;   // cached /api/v1/models list, with labels and Omni components
+async function models(){
+  const r=await api("/api/v1/models");
+  if(!r.ok) throw llmErr("lemonade_unreachable");
+  return modelInfo=((await r.json()).data||[]).filter(m=>m&&m.id);
+}
+const parts=m=>m?.composite_models||m?.components||[];
+
+// Small local models sometimes wrap JSON in a thinking block, code fences, or (Omni) a tool call after it.
+// Take the first complete {...} object.
 function parseReply(text){
-  const s=String(text||"").replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/```(?:json)?/gi,"");
-  const a=s.indexOf("{"), b=s.lastIndexOf("}");
-  if(a<0||b<=a) throw llmErr("invalid_json");
-  try{return JSON.parse(s.slice(a,b+1))}catch{throw llmErr("invalid_json")}
+  const s=String(text||"").replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/<audio>[\s\S]*?<\/audio>/gi,"").replace(/```(?:json)?/gi,"");
+  const a=s.indexOf("{"); if(a<0) throw llmErr("invalid_json");
+  let depth=0,inStr=false,esc2=false;
+  for(let i=a;i<s.length;i++){
+    const c=s[i];
+    if(inStr){ if(esc2)esc2=false; else if(c==="\\")esc2=true; else if(c==='"')inStr=false; continue; }
+    if(c==='"')inStr=true; else if(c==="{")depth++;
+    else if(c==="}"&&--depth===0){ try{return JSON.parse(s.slice(a,i+1))}catch{break} }
+  }
+  throw llmErr("invalid_json");
 }
 async function chat(system,user,signal,jsonMode){
-  const body={model,messages:[{role:"system",content:system},{role:"user",content:user}],temperature:0.2,stream:false};
+  if(isOmni(model)){ system+="\n\n"+OMNI_TEXT_ONLY; jsonMode=false; }
+  const body=omniBody({model,messages:[{role:"system",content:system},{role:"user",content:user}],temperature:0.2,stream:false});
   if(jsonMode) body.response_format={type:"json_object"};
   let r;
   try{ r=await api("/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal}); }
@@ -355,6 +426,7 @@ const db=(()=>{
 })();
 
 function show(view){
+  if(typeof stopReading==="function") stopReading();   // switching views stops any read-back
   const hist=view==="history";
   $("#viewNew").hidden=hist; $("#viewHistory").hidden=!hist;
   $("#toNew").hidden=!hist; $("#toHistory").hidden=hist;
@@ -371,6 +443,18 @@ function errCopy(c){
     || "Something went wrong talking to the local model. Try again.";
 }
 
+// Small models sometimes skip the {"status","ticket"} wrapper and write the ticket's fields at the top level,
+// even putting the category in "status" ({"status":"Problem","summary":...}). That's still a full ticket.
+function normalizeReply(d){
+  if(!d||typeof d!=="object"||d.ticket) return d;
+  const looksLikeTicket=d.category||d.summary||d.issue;
+  if(d.status==="needs_info"&&!looksLikeTicket) return d;
+  if(!looksLikeTicket) return d;
+  const t={...d};
+  if(!CATS.includes(t.category)&&CATS.includes(t.status)) t.category=t.status;
+  delete t.status; delete t.questions;
+  return {status:"ticket",questions:[],ticket:t};
+}
 async function create(){
   const notes=$("#notes").value.trim();
   if(!notes){say("Paste some job notes first.",true);return}
@@ -380,8 +464,7 @@ async function create(){
   const extraText = extra.length ? "\n\nAdditional details from the technician:\n"+extra.join("\n") : "";
   try{
     const r=await sample.json(RULES,"Job notes:\n"+notes+extraText,{signal:ctl.signal});
-    let d=r.data;
-    if(d&&!d.ticket&&!d.status&&d.category) d={status:"ticket",ticket:d};   // small models sometimes skip the wrapper
+    const d=normalizeReply(r.data);
     lastStats=r.stats;
     say("");
     if(d?.status==="needs_info"||!d?.ticket) renderAsk(d?.questions?.length?d.questions:["Can you add more detail about what happened and what you did?"]);
@@ -399,11 +482,11 @@ $("#notes").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.met
 /* ---------- Voice notes: record in the browser, transcribe with Lemonade's Whisper (stays on this PC) ---------- */
 const VOCAB="IT support job notes. Herbie, Jira, ADUC, Active Directory, Outlook, Microsoft 365, QuickBooks, Lacerte, Epic, Westlaw, VLAN, GPO, DNS, DHCP, VPN, Wi-Fi, router, firewall, printer.";
 let rec=null;
+// Speech-to-text: Whisper-Base if it's downloaded (in testing it heard IT notes more accurately than the
+// Omni-Lite bundle's Whisper-Tiny, which is faster), otherwise the Omni bundle's own Whisper, otherwise any Whisper.
 async function sttModel(){
-  const r=await api("/api/v1/models");
-  if(!r.ok) throw llmErr("lemonade_unreachable");
-  const ids=((await r.json()).data||[]).map(m=>m.id).filter(Boolean);
-  return ids.find(id=>/whisper/i.test(id))||"";
+  const ms=await models(), ids=ms.map(m=>m.id);
+  return ids.find(id=>/whisper-base/i.test(id))||parts(omniModel(ms)).find(id=>/whisper/i.test(id))||ids.find(id=>/whisper/i.test(id))||"";
 }
 function toWav16k(chunks,inRate){
   const len=chunks.reduce((n,c)=>n+c.length,0), all=new Float32Array(len);
@@ -466,6 +549,139 @@ async function stopTalk(){
 }
 $("#mic").onclick=()=>rec?stopTalk():startTalk();
 
+/* ---------- Snap it: read a photo of an error screen or device label with a local vision model ---------- */
+// Small print needs detail: shrinking a phone photo to 1024 px made the model misread a serial number,
+// while a bigger photo read it exactly. Gemma gets up to 2048 px. Omni-Lite's model has a 4096-token window,
+// and at 1536 px it read the same serial exactly (1280 px added a stray 0), so Omni gets 1536 px.
+const SNAP_MAX=2048, SNAP_MAX_OMNI=1536;
+const SNAP_PROMPT=`You help an IT technician write tickets. Read this photo (an error screen, a device label, or something else) and reply with only one JSON object:
+{"photo_type":"error_screen|device_label|other","summary":string,"product_or_app":string|null,"error_code":string|null,"error_message":string|null,"device_make_model":string|null,"serial_number":string|null,"service_tag":string|null,"other_ids":[string]}
+Rules: copy codes and serial numbers exactly, character by character; labels may be rotated. Use null when something isn't visible. Never guess. "summary" is one short sentence about what the photo shows.`;
+const SNAP_FIELDS=[["product_or_app","Product or app"],["error_code","Error code"],["error_message","Error message"],
+  ["device_make_model","Device"],["serial_number","Serial number"],["service_tag","Service tag"],["other_ids","Other IDs"]];
+const CODE_KEYS=new Set(["error_code","serial_number","service_tag","other_ids"]);
+let snapBusy=false;
+
+// Photos go to a Lemonade Omni model when one is downloaded; otherwise to a separate vision model.
+async function visionModel(){
+  const ms=await models(), omni=omniModel(ms);
+  if(omni) return omni.id;
+  const seeing=ms.filter(m=>!isOmni(m.id)&&((m.labels||[]).includes("vision")||/-vl-|vision|minicpm-v|gemma-4/i.test(m.id)));
+  return (seeing.find(m=>/gemma-4/i.test(m.id))||seeing[0]||{}).id||"";
+}
+async function photoToDataUrl(file,max=SNAP_MAX){
+  const bmp=await createImageBitmap(file,{imageOrientation:"from-image"});   // honors phone rotation
+  const k=Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const c=document.createElement("canvas");
+  c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+  c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); bmp.close?.();
+  return c.toDataURL("image/jpeg",0.9);
+}
+// Labels often print zero with a slash; the model copies it as Ø. Tickets need a plain 0.
+const cleanCode=v=>String(v).replace(/[Øø∅]/g,"0").trim();
+function cleanSnap(d){
+  const o={photo_type:d?.photo_type||"other",summary:String(d?.summary||"").trim()};
+  for(const [k] of SNAP_FIELDS){
+    let v=d?.[k];
+    if(Array.isArray(v)) v=v.filter(x=>x!=null&&String(x).trim()).map(String).join(", ");
+    if(v==null||/^(null|none|n\/a|unknown|not visible)$/i.test(String(v).trim())) v="";
+    o[k]=CODE_KEYS.has(k)?cleanCode(v):String(v).trim();
+  }
+  return o;
+}
+
+async function snap(file){
+  if(snapBusy||!file) return;
+  if(!/^image\//.test(file.type)){ say("That file isn't a picture. Snap reads photos and screenshots.",true); return; }
+  snapBusy=true; $("#snapBtn").disabled=true; $("#app").classList.add("thinking");
+  say("Herbie is reading the photo… (the first one loads the vision model, which can take a minute)");
+  let img="";
+  try{
+    const vm=await visionModel();
+    if(!vm){ say("To read photos, download a vision model in the Lemonade app (Gemma-4-E2B works well), then click Snap again.",true); return; }
+    img=await photoToDataUrl(file,isOmni(vm)?SNAP_MAX_OMNI:SNAP_MAX);
+    const t0=performance.now();
+    const msgs=[{role:"user",content:[{type:"text",text:SNAP_PROMPT},{type:"image_url",image_url:{url:img}}]}];
+    if(isOmni(vm)) msgs.unshift({role:"system",content:OMNI_TEXT_ONLY});
+    const body=omniBody({model:vm,temperature:0,max_tokens:500,stream:false,chat_template_kwargs:{enable_thinking:false},messages:msgs});
+    const r=await api("/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.status===502) throw llmErr("lemonade_unreachable");
+    const j=await r.json().catch(()=>null);
+    if(!r.ok) throw llmErr("model_error",j?.error?.message);
+    const text=j?.choices?.[0]?.message?.content||"";
+    const stats={model:vm,secs:(performance.now()-t0)/1000,toks:j?.usage?.completion_tokens||0};
+    let d=null; try{ d=cleanSnap(parseReply(text)); }catch{}
+    say("");
+    renderSnap(img,d,text,stats);
+  }catch(e){
+    say(e?.code==="lemonade_unreachable"?errCopy("lemonade_unreachable"):"Herbie couldn't read that photo. Try again, or a closer, sharper shot.",true);
+  }finally{ snapBusy=false; $("#snapBtn").disabled=false; $("#app").classList.remove("thinking"); }
+}
+
+function renderSnap(img,d,raw,stats){
+  const out=$("#snapOut");
+  const fields=d?SNAP_FIELDS.filter(([k])=>d[k]):[];
+  const body=!d?`<div class="field"><label class="label" for="s_raw">What Herbie read (couldn't sort it into fields)</label><textarea id="s_raw">${esc(raw)}</textarea></div>`
+    :`<div class="field"><label class="label" for="s_summary">What the photo shows</label><input id="s_summary" value="${esc(d.summary)}"></div>
+      ${fields.map(([k,l])=>`<div class="field"><label class="label" for="s_${k}">${l}</label><input id="s_${k}" value="${esc(d[k])}" spellcheck="false"></div>`).join("")}
+      ${fields.length?"":`<div class="hint">No error codes or serial numbers found in this photo.</div>`}`;
+  out.innerHTML=`<div class="panel snap">
+    <div class="ticket-head"><span class="label">Check what Herbie read from the photo</span></div>
+    <div class="stats">Read on this PC by ${esc(stats.model)} in ${stats.secs.toFixed(1)} s · $0.00 in API fees</div>
+    <div class="snapBody"><img src="${img}" alt="The photo you added"><div style="display:flex;flex-direction:column;gap:10px">${body}</div></div>
+    <div class="hint">Compare numbers with the photo before adding them. Small print can be misread.</div>
+    <div class="row"><button id="snapAdd" class="primary">Add to notes</button><button id="snapDrop" class="ghost">Discard</button></div>
+  </div>`;
+  $("#snapAdd").onclick=()=>{
+    const lines=[];
+    if(!d){ const t=$("#s_raw").value.trim(); if(t) lines.push("From photo: "+t); }
+    else{
+      const s=$("#s_summary").value.trim(); lines.push("From photo"+(s?": "+s:":"));
+      for(const [k,l] of fields){ const v=$("#s_"+k).value.trim(); if(v) lines.push(`${l}: ${CODE_KEYS.has(k)?cleanCode(v):v}`); }
+    }
+    const box=$("#notes"); box.value=(box.value.trim()?box.value.trim()+"\n":"")+lines.join("\n");
+    pendingPhotos.push(img); renderTray();
+    out.innerHTML=""; say("Added from the photo. The photo will be saved with the ticket. Add anything else you did, then click Create ticket."); box.focus();
+  };
+  $("#snapDrop").onclick=()=>{ out.innerHTML=""; say(""); };
+  $("#snapAdd").focus();
+}
+// Photos waiting to be saved with the next ticket.
+function renderTray(){
+  const tray=$("#photoTray"); tray.hidden=!pendingPhotos.length;
+  tray.innerHTML=pendingPhotos.length?`<span class="label">📎 Saved with this ticket</span>`+pendingPhotos.map((src,i)=>
+    `<span class="thumb"><img src="${src}" alt="Photo ${i+1} for this ticket" data-full="${i}"><button class="ghost" data-rm="${i}" title="Don't save this photo" aria-label="Remove photo ${i+1}">×</button></span>`).join(""):"";
+  tray.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{pendingPhotos.splice(+b.dataset.rm,1);renderTray()});
+  tray.querySelectorAll("img").forEach(im=>im.onclick=()=>openImage(im.src));
+}
+function openImage(src){ const w=window.open(); if(w){ w.document.title="Herbie photo"; w.document.body.style.cssText="margin:0;background:#111;display:grid;place-items:center;min-height:100vh"; const im=w.document.createElement("img"); im.src=src; im.style.cssText="max-width:100%;max-height:100vh"; w.document.body.appendChild(im);} }
+// Save each waiting photo in Herbie's photos folder (on this PC), named after the ticket.
+async function savePhotos(hid){
+  const names=[]; let failed=0;
+  for(const data of pendingPhotos){
+    try{
+      const r=await api("/herbie/photo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({hid,data})});
+      const j=await r.json().catch(()=>null);
+      if(r.ok&&j?.name) names.push(j.name); else failed++;
+    }catch{ failed++; }
+  }
+  return {names,failed};
+}
+$("#snapBtn").onclick=()=>$("#snapFile").click();
+$("#snapFile").onchange=e=>{ const f=e.target.files[0]; e.target.value=""; snap(f); };
+// Screenshots: paste (Ctrl+V) or drag a picture onto the notes box.
+$("#notes").addEventListener("paste",e=>{
+  const f=[...(e.clipboardData?.files||[])].find(x=>/^image\//.test(x.type));
+  if(f){ e.preventDefault(); snap(f); }
+});
+$("#notes").addEventListener("dragover",e=>{ if([...e.dataTransfer.items].some(i=>i.kind==="file")){ e.preventDefault(); $("#notes").classList.add("drop"); } });
+$("#notes").addEventListener("dragleave",()=>$("#notes").classList.remove("drop"));
+$("#notes").addEventListener("drop",e=>{
+  $("#notes").classList.remove("drop");
+  const f=[...(e.dataTransfer?.files||[])].find(x=>/^image\//.test(x.type));
+  if(f){ e.preventDefault(); snap(f); }
+});
+
 
 function renderAsk(qs){
   $("#out").innerHTML=`<div class="panel ask">
@@ -480,17 +696,53 @@ function renderAsk(qs){
 
 function sel(id,opts,val){return `<select id="${id}">${opts.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select>`}
 
+// Every ticket needs a client name (it's in the Jira title and the read-back). "Unknown" doesn't count.
+const hasClient=v=>!!String(v||"").trim()&&!/^(unknown|not stated|n\/a|none|no client|tbd)$/i.test(String(v).trim());
+function requireClient(p){
+  const box=$("#"+p+"client"); if(!box) return true;
+  const ok=hasClient(box.value), field=box.closest(".field");
+  field.classList.toggle("missing",!ok);
+  if(!ok){ box.focus(); box.oninput=()=>field.classList.toggle("missing",!hasClient(box.value)); }
+  return ok;
+}
 function formFields(p,t){
   const cat=CATS.includes(t.category)?t.category:"Incident";
   const pri=PRIS.includes(t.priority)?t.priority:"Medium";
   const st=STATS.includes(t.ticket_status)?t.ticket_status:"Open";
   return `<div class="grid">
       <div class="field"><label class="label" for="${p}category">Category</label>${sel(p+"category",CATS,cat)}</div>
-      <div class="field"><label class="label" for="${p}priority">Priority</label>${sel(p+"priority",PRIS,pri)}</div>
       <div class="field"><label class="label" for="${p}status">Status</label>${sel(p+"status",STATS,st)}</div>
     </div>
-    ${t.priority_assumed?`<div class="assumed">Priority is Herbie's call: ${esc(t.priority_reason||"your notes didn't give one")}. Change it if needed.</div>`:""}
-    ${FIELDS.map(([k,l])=>`<div class="field"><label class="label" for="${p}${k}">${l}</label><textarea id="${p}${k}">${esc(t[k]||"")}</textarea></div>`).join("")}`;
+    <div class="grid">
+      <div class="field"><label class="label" for="${p}impact">Impact</label>${sel(p+"impact",LEVELS.includes(t.impact)?LEVELS:["Not set",...LEVELS],LEVELS.includes(t.impact)?t.impact:"Not set")}</div>
+      <div class="field"><label class="label" for="${p}urgency">Urgency</label>${sel(p+"urgency",LEVELS.includes(t.urgency)?LEVELS:["Not set",...LEVELS],LEVELS.includes(t.urgency)?t.urgency:"Not set")}</div>
+      <div class="field"><label class="label" for="${p}priority">Priority</label>${sel(p+"priority",PRIS,pri)}<span class="hint" id="${p}prihint"></span></div>
+    </div>
+    ${t.priority_assumed?`<div class="assumed">Impact and urgency are Herbie's call: ${esc(t.priority_reason||"your notes didn't say")}. Change them if needed.</div>`:""}
+    ${FIELDS.map(([k,l])=>k==="client"
+      ?`<div class="field"><label class="label" for="${p}client">Client <span class="req" aria-hidden="true">*</span></label><textarea id="${p}client" required aria-required="true" placeholder="Who is this for? e.g. Smith Dental">${esc(hasClient(t.client)?t.client:"")}</textarea>${hasClient(t.client)?"":`<span class="hint">Your notes didn't name the client. Add it before saving.</span>`}</div>`
+      :k==="approved_by"
+      ?`<div class="field" id="${p}approvalField"${needsApproval(cat)?"":" hidden"}><label class="label" for="${p}approved_by">Approved by <span class="hint">(optional)</span></label><textarea id="${p}approved_by" placeholder="e.g. Dr. Smith (verbal), Nov 9">${esc(t.approved_by||"")}</textarea><span class="hint" id="${p}approvalHint"></span></div>`
+      :`<div class="field"><label class="label" for="${p}${k}">${l}${OPTIONAL.has(k)?' <span class="hint">(optional)</span>':""}</label><textarea id="${p}${k}">${esc(t[k]||"")}</textarea></div>`).join("")}`;
+}
+// Keep the ITIL bits in sync while the tech edits: priority follows impact x urgency (still changeable by hand),
+// and "Approved by" shows only for Changes and Requests, with a gentle reminder on a Change.
+function wireItil(p){
+  const imp=$("#"+p+"impact"), urg=$("#"+p+"urgency"), pri=$("#"+p+"priority"), cat=$("#"+p+"category");
+  if(!imp||!urg||!pri||!cat) return;
+  const sync=fromMatrix=>{
+    const m=priorityFrom(imp.value,urg.value);
+    if(m&&fromMatrix) pri.value=m;
+    $("#"+p+"prihint").textContent=m?(pri.value===m?"Set from impact × urgency":`Changed by hand (impact × urgency says ${m})`):"Set impact and urgency to work it out";
+  };
+  const approval=()=>{
+    const f=$("#"+p+"approvalField"), a=$("#"+p+"approved_by"), h=$("#"+p+"approvalHint");
+    if(!f) return; f.hidden=!needsApproval(cat.value);
+    h.textContent=cat.value==="Change"&&!a.value.trim()?"No approval noted. Add one if you got it.":"";
+  };
+  imp.onchange=urg.onchange=()=>sync(true); pri.onchange=()=>sync(false);
+  cat.addEventListener("change",approval); $("#"+p+"approved_by")?.addEventListener("input",approval);
+  sync(false); approval();
 }
 function growTextareas(root){root.querySelectorAll("textarea").forEach(a=>{a.style.height="auto";a.style.height=(a.scrollHeight+2)+"px"})}
 
@@ -499,30 +751,109 @@ function statsLine(s){
   const rate=s.toks&&s.secs?` · ${s.toks} tokens · ${(s.toks/s.secs).toFixed(0)} tok/s`:"";
   return `Written on this PC by ${esc(s.model)} in ${s.secs.toFixed(1)} s${rate} · $0.00 in API fees`;
 }
+// Codes and IDs read from a photo must reach the ticket word for word, so Herbie adds any the model left out.
+function keepPhotoFacts(t,src){
+  const facts=[]; let inPhoto=false;
+  for(const line of String(src).split("\n")){
+    if(/^From photo\b/i.test(line)){ inPhoto=true; continue; }
+    const m=inPhoto&&line.match(/^(Product or app|Error code|Error message|Device|Serial number|Service tag|Other IDs):\s*(.+)$/);
+    if(m) facts.push([m[1],m[2].trim()]); else inPhoto=false;
+  }
+  if(!String(t.affected_item||"").trim()&&facts.length){
+    const f=Object.fromEntries(facts), id=f["Service tag"]?`service tag ${f["Service tag"]}`:f["Serial number"]?`serial ${f["Serial number"]}`:"";
+    const what=f["Device"]||f["Product or app"]||"";
+    if(what||id) t={...t,affected_item:[what,id].filter(Boolean).join(", ")};
+  }
+  const all=FIELDS.map(([k])=>t[k]||"").join("\n");
+  const missing=facts.filter(([,v])=>!all.includes(v));
+  if(missing.length) t={...t,issue:(t.issue?t.issue.trim()+"\n":"")+missing.map(([l,v])=>`${l}: ${v}`).join("\n")};
+  return t;
+}
+// The model gives impact and urgency; Herbie works out priority from them the ITIL way.
+function applyItil(t){
+  t={...t};
+  for(const k of ["impact","urgency"]) if(!LEVELS.includes(t[k])) delete t[k];
+  const m=priorityFrom(t.impact,t.urgency); if(m) t.priority=m;
+  for(const k of OPTIONAL) if(/^(unknown|not stated|n\/a|none)$/i.test(String(t[k]||"").trim())) t[k]="";
+  return t;
+}
 function renderTicket(t, src){
+  t=keepPhotoFacts(applyItil(t),src);
   $("#out").innerHTML=`<div class="panel">
     <div class="ticket-head"><span class="label">Review before saving</span></div>
     <div class="stats">${statsLine(lastStats)}</div>
     ${formFields("f_",t)}
     <div class="row">
       <button id="save" class="primary">Save ticket</button>
+      <button id="readBtn" title="Hear a quick read-back (client name and summary) to check the ticket without looking at the screen. The voice runs on this computer.">🔊 Read aloud</button>
       <button id="discard" class="ghost">Discard</button>
     </div>
   </div>`;
-  growTextareas($("#out"));
-  $("#save").onclick=()=>save(src);
-  $("#discard").onclick=reset;
+  growTextareas($("#out")); wireItil("f_");
+  $("#save").onclick=()=>{stopReading();save(src)};
+  $("#readBtn").onclick=readAloud;
+  $("#discard").onclick=()=>{stopReading();reset()};
 }
+
+/* ---------- Read aloud: the Omni bundle's own voice (Kokoro) gives a short read-back ----------
+   Used on a new ticket before saving, and on each ticket in Past tickets to decide quickly which one to open. */
+let player=null, playingBtn=null;
+async function ttsModel(){
+  const ms=await models();
+  return parts(omniModel(ms)).find(id=>/kokoro|tts/i.test(id))
+    ||(ms.find(m=>(m.labels||[]).includes("tts")||/kokoro/i.test(m.id))||{}).id||"";
+}
+// A short read-back, like a pilot confirming a clearance: the parts most worth catching.
+// (Reading the whole ticket took about 28 s and said client details out loud; this takes about 8 s.)
+function readbackText(t){
+  // Just who and what: the client's name and the one-line summary of the problem.
+  const client=hasClient(t.client)?String(t.client).trim().replace(/[.!]*$/,"."):"";
+  const summary=String(t.summary||"").trim().replace(/[.!]*$/,".");
+  return [client,summary!=="."&&summary]
+    .filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+}
+function stopReading(){
+  if(player){ player.pause(); URL.revokeObjectURL(player.src); player=null; }
+  if(playingBtn){ playingBtn.textContent=playingBtn.dataset.label; playingBtn.disabled=false; playingBtn.removeAttribute("aria-pressed"); }
+  playingBtn=null;
+}
+async function speakTicket(t,btn,tell=say){
+  const again=playingBtn===btn;
+  stopReading();
+  if(again) return;                       // second click on the same speaker stops it
+  btn.dataset.label=btn.dataset.label||btn.textContent;
+  playingBtn=btn; btn.disabled=true; btn.textContent=btn.classList.contains("speak")?"…":"Getting the voice ready…";
+  try{
+    const tts=await ttsModel();
+    if(!tts){ stopReading(); tell("To hear tickets read aloud, download kokoro-v1 (or an Omni model) in the Lemonade app.",true); return; }
+    const r=await api("/api/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:tts,input:readbackText(t),voice:"af_heart",response_format:"wav"})});
+    if(r.status===502) throw llmErr("lemonade_unreachable");
+    if(!r.ok) throw new Error("tts");
+    if(playingBtn!==btn) return;          // another speaker was clicked while this one loaded
+    player=new Audio(URL.createObjectURL(await r.blob()));
+    player.onended=stopReading;
+    await player.play();
+    btn.disabled=false; btn.setAttribute("aria-pressed","true");
+    btn.textContent=btn.classList.contains("speak")?"■":"■ Stop reading";
+  }catch(e){
+    if(playingBtn===btn) stopReading();
+    tell(e?.code==="lemonade_unreachable"?errCopy("lemonade_unreachable"):"Herbie couldn't read the ticket aloud. Try again.",true);
+  }
+}
+function readAloud(){ speakTicket(readForm(),$("#readBtn")); }
 
 function readForm(p="f_"){
   const o={category:$("#"+p+"category").value,priority:$("#"+p+"priority").value,ticket_status:$("#"+p+"status").value};
-  FIELDS.forEach(([k])=>o[k]=$("#"+p+k).value.trim());
+  for(const k of ["impact","urgency"]){ const v=$("#"+p+k)?.value; if(LEVELS.includes(v)) o[k]=v; }
+  FIELDS.forEach(([k])=>o[k]=($("#"+p+k)?.value||"").trim());
+  if(!needsApproval(o.category)) o.approved_by="";
   return o;
 }
 
 /* ---------- Jira: Herbie's server files tickets with the login in .env (the token never reaches this page) ---------- */
 function jiraPayload(t,extraKeys={}){
-  const keep={herbie:"jira-v1",hid:t.hid,category:t.category,priority:t.priority,ticket_status:t.ticket_status,notes:t.notes||""};
+  const keep={herbie:"jira-v1",hid:t.hid,category:t.category,priority:t.priority,impact:t.impact||"",urgency:t.urgency||"",ticket_status:t.ticket_status,notes:t.notes||""};
   FIELDS.forEach(([k])=>keep[k]=t[k]||"");
   return {...keep,...extraKeys};
 }
@@ -548,9 +879,17 @@ async function sendToJira(t,extraKeys={}){
 const jiraFields=j=>({jira_key:j.key,jira_url:j.url,jiraExportedAt:new Date().toISOString()});
 
 async function save(src){
+  if(!requireClient("f_")){ say("Add the client's name before saving. Every ticket needs one.",true); return; }
   const llm=lastStats?{model:lastStats.model,secs:+lastStats.secs.toFixed(2),toks:lastStats.toks}:undefined;
   const t={...readForm(),notes:src,hid:newHid(),...(llm?{llm}:{})};
   $("#save").disabled=true;
+  let photoNote="";
+  if(pendingPhotos.length){
+    say("Saving the photo…");
+    const p=await savePhotos(t.hid);
+    if(p.names.length) t.photos=p.names;
+    if(p.failed) photoNote=` ${p.failed} photo${p.failed===1?"":"s"} couldn't be saved.`;
+  }
   let id;
   try{ id=(await db.collection("tickets").add({...t,createdAt:new Date().toISOString()})).id; }
   catch(e){
@@ -563,11 +902,13 @@ async function save(src){
   reset();
   if(j.error){
     const off=j.error.code==="not_configured";
-    say("Ticket saved in Herbie, but not in Jira: "+j.error.message+(off?"":" Use “Send to Jira” in Past tickets to try again."),!off);
+    say("Ticket saved in Herbie, but not in Jira: "+j.error.message+(off?"":" Use “Send to Jira” in Past tickets to try again.")+photoNote,!off);
     return;
   }
+  if(photoNote) say(photoNote.trim(),true);
   await db.doc("tickets/"+id).update(jiraFields(j)).catch(()=>{});
-  celebrate("Saved!",j.already?`Already in Jira as ${j.key}.`:`Filed in Jira as ${j.key}.`,j.key,j.url);
+  const pics=j.photos?` with ${j.photos} photo${j.photos===1?"":"s"}`:"";
+  celebrate("Saved!",j.already?`Already in Jira as ${j.key}.`:`Filed in Jira as ${j.key}${pics}.`,j.key,j.url);
 }
 const SPARK_COLORS=["var(--accent)","var(--signal)","var(--ok)","var(--crit)"];
 let celeReturn=null;
@@ -596,7 +937,7 @@ $("#celeOk").onclick=closeCele;
 $("#cele").addEventListener("click",e=>{ if(e.target.id==="cele") closeCele(); });
 document.addEventListener("keydown",e=>{ if(!$("#cele").hidden && (e.key==="Escape"||e.key==="Enter")){ e.preventDefault(); closeCele(); } });
 
-function reset(){ $("#notes").value=""; $("#out").innerHTML=""; extra=[]; lastStats=null; say(""); $("#notes").focus(); }
+function reset(){ $("#notes").value=""; $("#out").innerHTML=""; $("#snapOut").innerHTML=""; pendingPhotos=[]; renderTray(); extra=[]; lastStats=null; say(""); $("#notes").focus(); }
 
 function fmt(iso){try{return new Date(iso).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}catch{return ""}}
 function renderTally(){
@@ -611,22 +952,23 @@ function renderList(){
   const q=$("#search").value.trim().toLowerCase();
   const list=$("#list");
   renderTally();
-  const rows=tickets.filter(t=>!q||[t.client,t.summary,t.category,t.issue,t.resolution].join(" ").toLowerCase().includes(q));
+  const rows=tickets.filter(t=>!q||[t.client,t.requested_by,t.affected_item,t.summary,t.category,t.issue,t.resolution].join(" ").toLowerCase().includes(q));
   if(!tickets.length){list.innerHTML=`<div class="empty">No saved tickets yet. Your first saved ticket will show up here.</div>`;return}
   if(!rows.length){list.innerHTML=`<div class="empty">No tickets match “${esc(q)}”.</div>`;return}
   list.innerHTML=rows.map(t=>`<details class="item" data-id="${esc(t.id)}"${openIds.has(t.id)||editingId===t.id||confirmingDelete===t.id?" open":""}>
     <summary><span class="pill c-${esc(t.category)}">${esc(t.category)}</span>
       <span class="sum"><strong>${esc(t.client||"No client")}</strong> · ${esc(t.summary)}</span>
-      <span class="meta">${t.updatedAt?`<span class="edited" title="Edited ${esc(fmt(t.updatedAt))}">edited</span>`:""}${t.llm?`<span class="pill local-pill" title="${esc(statsLine(t.llm))}">Local</span>`:""}${t.jira_key?`<span class="pill jira-pill" title="In Jira since ${esc(fmt(t.jiraExportedAt))}">${esc(t.jira_key)}</span>`:t.jiraExportedAt?`<span class="pill jira-pill">In Jira</span>`:""}${esc(fmt(t.createdAt))}</span>
+      <span class="meta"><button class="ghost speak" data-speak="${esc(t.id)}" title="Hear a quick read-back of this ticket" aria-label="Read this ticket aloud">🔊</button>${t.updatedAt?`<span class="edited" title="Edited ${esc(fmt(t.updatedAt))}">edited</span>`:""}${t.llm?`<span class="pill local-pill" title="${esc(statsLine(t.llm))}">Local</span>`:""}${t.jira_key?`<span class="pill jira-pill" title="In Jira since ${esc(fmt(t.jiraExportedAt))}">${esc(t.jira_key)}</span>`:t.jiraExportedAt?`<span class="pill jira-pill">In Jira</span>`:""}${esc(fmt(t.createdAt))}</span>
       <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
     <div class="body">${editingId===t.id?editForm(t):`
-      <dl><dt>Priority</dt><dd><span class="pill p-${esc(t.priority)}">${esc(t.priority)}</span></dd>
+      <dl><dt>Priority</dt><dd><span class="pill p-${esc(t.priority)}">${esc(t.priority)}</span>${t.impact&&t.urgency?` <span class="hint">impact ${esc(t.impact)} × urgency ${esc(t.urgency)}</span>`:""}</dd>
         <dt>Status</dt><dd>${esc(t.ticket_status)}</dd>
-        ${FIELDS.map(([k,l])=>`<dt>${l}</dt><dd>${esc(t[k])}</dd>`).join("")}
+        ${FIELDS.filter(([k])=>!OPTIONAL.has(k)||String(t[k]||"").trim()).map(([k,l])=>`<dt>${l}</dt><dd>${esc(t[k])}</dd>`).join("")}
         ${t.llm?`<dt>Made by</dt><dd>${statsLine(t.llm)}</dd>`:""}
         ${t.jira_key?`<dt>Jira</dt><dd>${t.jira_url?`<a href="${esc(t.jira_url)}" target="_blank" rel="noopener">${esc(t.jira_key)}</a>`:esc(t.jira_key)}${t.jiraExportedAt?` · updated ${esc(fmt(t.jiraExportedAt))}`:""}</dd>`:t.jiraExportedAt?`<dt>Jira</dt><dd>Exported ${esc(fmt(t.jiraExportedAt))}</dd>`:""}</dl>
       ${t.categoryHistory?.length?`<div class="hint">Category history: ${t.categoryHistory.map(h=>`${esc(h.from)} → ${esc(h.to)} (${esc(fmt(h.at))})`).join(", ")}</div>`:""}
       <div class="label">Original notes</div><pre class="raw">${esc(t.notes)}</pre>
+      ${t.photos?.length?`<div class="label">Photos</div><div class="thumbs">${t.photos.map(n=>`<img data-photo="${esc(n)}" alt="Photo from the job">`).join("")}</div>`:""}
       ${confirmingDelete===t.id?`<div class="confirm danger" role="group" aria-label="Confirm delete">
         <div>Delete this ticket from Herbie? It stays in Jira.</div>
         <div class="row"><button class="danger" data-act="delete-yes" data-id="${esc(t.id)}">Delete from Herbie</button>
@@ -639,9 +981,30 @@ function renderList(){
   list.querySelectorAll("details.item").forEach(d=>d.addEventListener("toggle",()=>{d.open?openIds.add(d.dataset.id):openIds.delete(d.dataset.id); syncCollapseAll()}));
   syncCollapseAll();
   list.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>itemAction(b.dataset.act,b.dataset.id));
-  const ef=list.querySelector(".editForm"); if(ef) growTextareas(ef);
+  // The speaker sits in the row's summary line: play without opening or closing the ticket.
+  list.querySelectorAll("[data-speak]").forEach(b=>b.onclick=e=>{
+    e.preventDefault(); e.stopPropagation();
+    const t=tickets.find(x=>x.id===b.dataset.speak); if(t) speakTicket(t,b,sayHist);
+  });
+  const ef=list.querySelector(".editForm"); if(ef){ growTextareas(ef); wireItil("e_"); }
+  loadPhotos(list);
 }
 
+// Saved photos live in Herbie's photos folder; the page fetches them through Herbie's server.
+const photoUrls=new Map();
+function loadPhotos(root){
+  root.querySelectorAll("img[data-photo]").forEach(async im=>{
+    const n=im.dataset.photo;
+    try{
+      if(!photoUrls.has(n)){
+        const r=await api("/herbie/photo?name="+encodeURIComponent(n));
+        if(!r.ok) throw 0;
+        photoUrls.set(n,URL.createObjectURL(await r.blob()));
+      }
+      im.src=photoUrls.get(n); im.onclick=()=>openImage(im.src);
+    }catch{ im.alt="Photo missing from Herbie's photos folder"; im.title=im.alt; }
+  });
+}
 function syncCollapseAll(){ $("#collapseAll").hidden=!$("#list").querySelector("details.item[open]"); }
 $("#collapseAll").onclick=()=>{
   if(editingId||confirmingDelete){ editingId=null; confirmingDelete=null; }
@@ -674,6 +1037,7 @@ async function itemAction(act,id){
   if(act==="delete"){ confirmingDelete=id; editingId=null; renderList(); return; }
   if(act==="cancel"){ editingId=null; confirmingDelete=null; renderList(); return; }
   if(act==="jira"){
+    if(!hasClient(t.client)){ itemMsgs[id]={text:"This ticket has no client name. Click Edit, add the client, then save.",err:true}; renderList(); return; }
     itemMsgs[id]={text:"Herbie is filing it in Jira…"}; renderList();
     const hid=t.hid||newHid();
     if(!t.hid) await db.doc("tickets/"+id).update({hid}).catch(()=>{});
@@ -690,6 +1054,7 @@ async function itemAction(act,id){
     return;
   }
   if(act==="save-edit"){
+    if(!requireClient("e_")){ $("#e_confirm").innerHTML=`<div class="itemMsg err">Add the client's name before saving. Every ticket needs one.</div>`; return; }
     const next=readForm("e_");
     const jiraKey=($("#e_jirakey")?.value||"").trim().toUpperCase();
     if(jiraKey && !/^[A-Z][A-Z0-9]+-\d+$/.test(jiraKey)){ $("#e_confirm").innerHTML=`<div class="itemMsg err">That doesn't look like a Jira number. Use the form KAN-12.</div>`; return; }

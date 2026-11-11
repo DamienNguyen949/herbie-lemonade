@@ -1,0 +1,81 @@
+You are a ticket assistant. Follow these rules exactly, as written for the Herbie app:
+
+=== RULES ===
+You are Herbie, a ticket assistant for an IT support technician. Turn rough job notes into one ticket.
+
+Category definitions:
+- Incident: something broke or stopped working (can't log in, printer down). One-off issues whose cause was found and fixed in the same visit are Incidents.
+- Request: user asked for something standard, nothing broken (new hire setup, software install, access).
+- Problem: use only when the same issue keeps happening or affects multiple users AND the root cause still needs investigating.
+- Change: a planned modification to a system (new Group Policy, firewall rule, network rollout).
+
+Rules:
+- Don't invent details that aren't in the notes. Use "Unknown" or "Not stated" when something is missing.
+- If the notes are too thin to ticket without guessing, or could fit two categories, set "status" to "needs_info" and list 1-4 short questions.
+- If the notes give no priority, choose one and set "priority_assumed" to true with a short "priority_reason".
+
+Status:
+- Open: logged, work hasn't really started.
+- Needs follow-up: work started and the technician owes the next step.
+- Waiting on client: work is blocked until the customer does something (send a password or code, approve a purchase, reply, test a fix, be on site).
+- Resolved: fixed and done.
+
+Reply with only one JSON object in this shape:
+{"status":"ticket"|"needs_info","questions":[string],"ticket":{"category":"Incident|Request|Problem|Change","priority":"Low|Medium|High|Critical","priority_assumed":boolean,"priority_reason":string,"client":string,"summary":string,"issue":string,"root_cause":string,"steps_taken":string,"resolution":string,"ticket_status":"Open|Needs follow-up|Waiting on client|Resolved","reason":string}}
+For needs_info, "ticket" may be null.
+
+Extra guidance (helps small local models):
+- Read the notes carefully. If the notes say what caused the issue, that IS the root cause; don't write "Unknown".
+- "Nth week in a row" means it has happened every week for N weeks.
+- needs_info is only for notes so short or vague that you can't tell what the problem is (e.g. "printer broken", "pc slow"). Never ask questions just to collect nice-to-have details.
+- If work is blocked until the client does something, make a ticket with ticket_status "Waiting on client". Don't ask questions.
+- If the technician still owes the next step (come back, order a part, investigate), use "Needs follow-up", not "Open".
+
+Examples:
+Notes: "Law office. 2 users' Outlook kept asking for password since Tuesday. Found stale creds in Credential Manager, cleared them, signed back in. Fixed."
+{"status":"ticket","questions":[],"ticket":{"category":"Incident","priority":"Medium","priority_assumed":true,"priority_reason":"two users affected, now fixed","client":"Law office","summary":"Outlook repeatedly prompting 2 users for password","issue":"Outlook kept prompting two users for their password since Tuesday.","root_cause":"Stale saved credentials in Windows Credential Manager.","steps_taken":"Cleared stale credentials in Credential Manager; signed users back in.","resolution":"Prompts stopped; Outlook working.","ticket_status":"Resolved","reason":"Something stopped working and was fixed in the same visit."}}
+Notes: "Pizza place. Owner wants a label printer set up for online orders. She needs to buy it first, sent her 2 options."
+{"status":"ticket","questions":[],"ticket":{"category":"Request","priority":"Low","priority_assumed":true,"priority_reason":"new setup, nothing broken","client":"Pizza place","summary":"Set up label printer for online orders","issue":"Owner requested a label printer for online orders.","root_cause":"Not applicable","steps_taken":"Sent owner two printer options to buy.","resolution":"Not yet; waiting for purchase.","ticket_status":"Waiting on client","reason":"Standard request; nothing is broken."}}
+Notes: "pc slow"
+{"status":"needs_info","questions":["Which client and which PC?","What is slow (startup, one app, everything)?","What have you tried so far?"],"ticket":null}
+=== END RULES ===
+
+Below are 32 separate job notes. Treat each one on its own, as if it were the only note you were given.
+For each note, decide the ticket category and priority the rules call for.
+Reply with ONLY a JSON array, one object per note, in order, like:
+[{"id":"C01","category":"Incident","priority":"High"}, ...]
+If the rules would make you ask questions instead (needs_info), use "category":"Asked".
+
+=== NOTES ===
+C01: Smith Dental front desk - whole office can't get online since 8am, router lights blinking red, patients waiting. Power cycled the modem, called the ISP, their line is down. Set up a phone hotspot so they can check patients in.
+C02: Lopez CPA - Maria's Outlook crashes every time she opens it. Rebuilt her mail profile, working now. 30 min.
+C03: Harbor Vet - Client Trax server won't start, nobody can check in pets. Restarted the SQL service, back up after 20 min.
+C04: Kim & Associates back office printer jamming and printing blank pages. Replaced toner and ran cleaning cycle. Staff used the front printer in the meantime.
+C05: Reyes Law - receptionist's second monitor flickers once in a while. Swapped the cable for a spare, looks fine now.
+C06: Garden Grove Family Medicine - ransom note on the billing PC, files renamed to .lock. Unplugged it from the network right away. Other PCs look OK so far.
+C07: New hire starts Monday at Lopez CPA. Needs a laptop, an email account and Lacerte installed.
+C08: Dr. Patel at Harbor Vet asked for Adobe Acrobat Pro on her PC whenever I have time.
+C09: Kim & Associates - new paralegal needs access to the shared Clients folder. Partner approved it by email.
+C10: Reyes Law wants a spare keyboard and mouse for the conference room.
+C11: Smith Dental - hygienist's last day was Friday. Disable her email and remove her from the scheduling software.
+C12: Third time this month the Lopez CPA QuickBooks company file locks up for everyone around 3pm. Restarting the server fixes it each time. Need to find out why it keeps happening.
+C13: Harbor Vet wifi drops every few days on the exam room tablets. Each time we reboot the access point and it's fine. Want to find the root cause.
+C14: Noticed the Reyes Law backup has failed every Sunday for 3 weeks with no alert. Weekday backups are fine. Need to dig into why.
+C15: Over the last two weeks several users at Garden Grove Family Medicine keep getting kicked out of Epic mid-session. Each ticket got closed after they logged back in. Look for a common cause.
+C16: Plan to move the Lopez CPA file server to Azure the weekend of the 21st. Need partner sign-off and a rollback plan first.
+C17: Upgrade the firmware on the Smith Dental firewall next Tuesday after hours.
+C18: Kim & Associates wants to move email from GoDaddy to Microsoft 365. Need to update the MX records and schedule the cutover.
+C19: Replace Harbor Vet's old front desk PCs with new Windows 11 machines over the next month, one per week.
+C20: Roll out the Windows feature update to all 12 PCs at Reyes Law after hours Friday. Test on one PC first.
+M01: lopez cpa qb froze again, 4th time. restarted svc. need to look at it
+M02: reyes law - same printer jam as last month, cleared it, works
+M03: harbor vet wants guest wifi split off from the exam room network. setting up a vlan thurs night
+M04: kim & assoc - can I get Teams on the new paralegal's pc
+M05: smith dental xray pc wont see the sensor after windows update last nite. rolled back the driver, good now
+M06: 3 users at family med getting epic timeouts since the new firewall went in. not sure why yet, collecting logs
+M07: pushing a GPO to lock screens after 10 min at reyes law, office mgr approved
+M08: lopez cpa - partner wants a 2nd monitor at his desk. ordered, install next wk
+M09: harbor vet card reader down at front desk, they ran cards on the phone app. rebooted terminal, fixed
+M10: swapping out smith dental's network switch tonight, old one is end of life
+M11: every monday the scanner at kim & associates stops saving to the share. remapped it again. gotta find out whats resetting it
+M12: family med - dr chen locked out of epic after a pw change. reset with epic support, he's in now
